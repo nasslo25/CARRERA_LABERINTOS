@@ -100,6 +100,9 @@
         </span>
     </div>
 
+    <!-- ============================================== -->
+    <!-- CAJA DEL PROYECTOR (AQUÍ VIVE EL JUEGO VISUAL) -->
+    <!-- ============================================== -->
     <div id="app-container" class="relative z-10 w-full h-full flex justify-center pb-6 pt-2">
 
         <!-- MENÚ NIVELES -->
@@ -145,7 +148,6 @@
                 <div class="w-10"></div>
             </div>
             
-            <!-- Contenedor Flex para que el Canvas se adapte 100% -->
             <div class="flex-1 w-full flex items-center justify-center min-h-0 relative p-1">
                 <div class="relative h-full max-h-full max-w-full aspect-square border-4 border-cyan-400/50 rounded-xl sm:rounded-2xl shadow-[0_0_30px_rgba(6,182,212,0.3)] bg-black/60 p-1 sm:p-2">
                     <canvas id="canvas-solo"></canvas>
@@ -211,30 +213,6 @@
             </div>
         </div>
 
-        <!-- CONTROL REMOTO (CELULAR) - D-PAD RESPONSIVO -->
-        <div id="remote-view" class="fixed inset-0 z-[300] hidden flex-col items-center justify-center p-4 w-screen h-[100dvh]">
-            <h1 class="text-3xl sm:text-5xl font-black text-white mb-4 sm:mb-8 drop-shadow-md tracking-widest shrink-0">EQUIPO <span id="remote-team-name"></span></h1>
-            
-            <div id="remote-status" class="mb-4 sm:mb-8 text-white font-bold opacity-80 animate-pulse text-sm sm:text-lg bg-black/30 px-4 py-2 rounded-full">Conectando a la nave...</div>
-
-            <!-- Joystick Flexible que usa clamp para no desbordar en celulares pequeños -->
-            <div class="flex-1 w-full min-h-0 flex items-center justify-center pb-8">
-                <div class="grid grid-cols-3 grid-rows-3 gap-2 sm:gap-3 w-full max-w-[85vw] sm:max-w-[400px] aspect-square">
-                    <div></div>
-                    <button onpointerdown="sendMove('up')" class="dpad-btn"><i data-lucide="arrow-up" class="w-10 h-10 sm:w-16 sm:h-16"></i></button>
-                    <div></div>
-                    
-                    <button onpointerdown="sendMove('left')" class="dpad-btn"><i data-lucide="arrow-left" class="w-10 h-10 sm:w-16 sm:h-16"></i></button>
-                    <div class="flex items-center justify-center text-3xl sm:text-5xl opacity-50 font-black filter drop-shadow-lg">🕹️</div>
-                    <button onpointerdown="sendMove('right')" class="dpad-btn"><i data-lucide="arrow-right" class="w-10 h-10 sm:w-16 sm:h-16"></i></button>
-                    
-                    <div></div>
-                    <button onpointerdown="sendMove('down')" class="dpad-btn"><i data-lucide="arrow-down" class="w-10 h-10 sm:w-16 sm:h-16"></i></button>
-                    <div></div>
-                </div>
-            </div>
-        </div>
-
         <!-- VICTORIA -->
         <div id="view-victory" class="view flex-col items-center justify-center bg-[#0a0f1d]/95 backdrop-blur-xl p-6 sm:p-10 rounded-3xl sm:rounded-[3rem] shadow-2xl border-4 sm:border-8 border-yellow-400 text-center w-full max-w-xl animate-fade-in z-50 mx-2">
             <i data-lucide="trophy" class="w-20 h-20 sm:w-28 sm:h-28 text-yellow-400 mb-4 sm:mb-6 animate-bounce"></i>
@@ -249,13 +227,39 @@
             </button>
         </div>
 
+    </div> <!-- FIN CAJA PROYECTOR -->
+
+    <!-- ============================================== -->
+    <!-- CONTROL REMOTO (TOTALMENTE INDEPENDIENTE AFUERA) -->
+    <!-- ============================================== -->
+    <div id="remote-view" class="fixed inset-0 z-[300] hidden flex-col items-center justify-center p-4 w-screen min-h-screen bg-[#0a0f1d] transition-colors duration-300">
+        <h1 class="text-3xl sm:text-5xl font-black text-white mb-4 sm:mb-8 drop-shadow-md tracking-widest shrink-0">EQUIPO <span id="remote-team-name"></span></h1>
+        
+        <div id="remote-status" class="mb-4 sm:mb-8 text-white font-bold opacity-80 animate-pulse text-sm sm:text-lg bg-black/30 px-4 py-2 rounded-full">Conectando a la nave...</div>
+
+        <!-- Joystick Flexible -->
+        <div class="flex-1 w-full min-h-0 flex items-center justify-center pb-8">
+            <div class="grid grid-cols-3 grid-rows-3 gap-2 sm:gap-3 w-full max-w-[85vw] sm:max-w-[400px] aspect-square">
+                <div></div>
+                <button onpointerdown="sendMove('up')" class="dpad-btn"><i data-lucide="arrow-up" class="w-10 h-10 sm:w-16 sm:h-16"></i></button>
+                <div></div>
+                
+                <button onpointerdown="sendMove('left')" class="dpad-btn"><i data-lucide="arrow-left" class="w-10 h-10 sm:w-16 sm:h-16"></i></button>
+                <div class="flex items-center justify-center text-3xl sm:text-5xl opacity-50 font-black filter drop-shadow-lg">🕹️</div>
+                <button onpointerdown="sendMove('right')" class="dpad-btn"><i data-lucide="arrow-right" class="w-10 h-10 sm:w-16 sm:h-16"></i></button>
+                
+                <div></div>
+                <button onpointerdown="sendMove('down')" class="dpad-btn"><i data-lucide="arrow-down" class="w-10 h-10 sm:w-16 sm:h-16"></i></button>
+                <div></div>
+            </div>
+        </div>
     </div>
+
 
     <!-- LÓGICA DEL JUEGO INTACTA -->
     <script>
         lucide.createIcons();
 
-        // Configuraciones de Niveles
         const LEVELS = [
             { id: 'easy', label: 'Principiante', size: 6, color: 'from-green-400 to-emerald-600', icon: '🌱' },
             { id: 'medium', label: 'Intermedio', size: 10, color: 'from-blue-400 to-cyan-600', icon: '⭐' },
@@ -399,7 +403,6 @@
             const ctx = canvas.getContext('2d');
             const size = maze.length;
             
-            // Resolución interna alta para nitidez, la vista CSS lo escala
             canvas.width = 600;
             canvas.height = 600;
             
@@ -407,7 +410,7 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             // Dibujar paredes
-            ctx.strokeStyle = '#38bdf8'; // Cyan line
+            ctx.strokeStyle = '#38bdf8';
             ctx.lineWidth = size > 10 ? 4 : 6;
             ctx.lineCap = 'round';
 
@@ -463,7 +466,9 @@
                 document.getElementById('vic-team').innerText = text;
                 document.getElementById('btn-rematch').style.display = teamName ? 'block' : 'none';
                 
-                if (hostConnection) broadcastToRemotes({ type: 'finish' });
+                // Anuncia a todos los celulares conectados que el juego terminó
+                broadcastToRemotes({ type: 'finish' });
+                
                 setTimeout(() => showView('view-victory'), 800);
             }
         }
@@ -513,11 +518,12 @@
 
             myPeer = new Peer();
             myPeer.on('open', (id) => {
-                const baseUrl = window.location.href.split('?')[0];
+                // Genera la url de base de forma segura eliminando parámetros basuras
+                const baseUrl = window.location.origin + window.location.pathname;
+                
                 document.getElementById('qr-code-1').innerHTML = '';
                 document.getElementById('qr-code-2').innerHTML = '';
                 
-                // Generamos los QR con un tamaño mayor interno (200x200) para mayor nitidez al expandir
                 new QRCode(document.getElementById('qr-code-1'), { text: `${baseUrl}?host=${id}&team=1`, width: 200, height: 200 });
                 new QRCode(document.getElementById('qr-code-2'), { text: `${baseUrl}?host=${id}&team=2`, width: 200, height: 200 });
             });
@@ -557,10 +563,12 @@
         let hostConnection = null;
 
         if (urlHost && urlTeam) {
+            // Escondemos los elementos del proyector
             document.getElementById('welcome-overlay').style.display = 'none';
             document.getElementById('app-container').style.display = 'none';
             document.getElementById('btn-sound').style.display = 'none';
             
+            // Mostramos el control remoto
             const rView = document.getElementById('remote-view');
             rView.classList.remove('hidden'); rView.classList.add('flex');
             rView.classList.add(urlTeam === 1 ? 'bg-red-theme' : 'bg-blue-theme');
