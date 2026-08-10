@@ -1,393 +1,390 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>AR Educativo V2 - Puntos persistentes</title>
-<style>
-  *{box-sizing:border-box}
-  html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000;font-family:Arial,sans-serif}
-  #video{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
-  #overlay{position:fixed;inset:0;width:100%;height:100%;pointer-events:none}
-  #ui{position:fixed;z-index:20;left:12px;top:12px;max-width:360px;color:#fff;background:rgba(0,0,0,.68);padding:12px 14px;border-radius:16px;backdrop-filter:blur(8px)}
-  #ui h2{margin:0 0 8px;font-size:18px}
-  #status{font-size:13px;line-height:1.35;margin-bottom:9px}
-  button{border:0;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer}
-  #start{background:#00c853;color:#fff}
-  #debug{background:#fff;color:#111;margin-left:6px}
-  #objects{position:fixed;inset:0;z-index:10;pointer-events:none}
-  .obj{position:absolute;left:0;top:0;width:94px;height:94px;transform:translate(-50%,-50%);display:none;will-change:left,top,transform}
-  .obj img{width:100%;height:100%;display:block;filter:drop-shadow(0 5px 7px rgba(0,0,0,.55))}
-  .hint{opacity:.78;margin-top:8px;font-size:11px}
-  #loading{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:#111;color:#fff;text-align:center}
-  #loading.hide{display:none}
-  #process{display:none}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>AR Educativo V2 - Puntos persistentes</title>
+  <style>
+    *{box-sizing:border-box}
+    html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000;font-family:Arial,sans-serif}
+    #video{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
+    #overlay{position:fixed;inset:0;width:100%;height:100%;pointer-events:none}
+    #ui{position:fixed;z-index:20;left:12px;top:12px;max-width:360px;color:#fff;background:rgba(0,0,0,.68);padding:12px 14px;border-radius:16px;backdrop-filter:blur(8px)}
+    #ui h2{margin:0 0 8px;font-size:18px}
+    #status{font-size:13px;line-height:1.35;margin-bottom:9px}
+    button{border:0;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer}
+    #start{background:#00c853;color:#fff}
+    #debug{background:#fff;color:#111;margin-left:6px}
+    #objects{position:fixed;inset:0;z-index:10;pointer-events:none}
+    .obj{position:absolute;left:0;top:0;width:94px;height:94px;transform:translate(-50%,-50%);display:none;will-change:left,top,transform}
+    .obj img{width:100%;height:100%;display:block;filter:drop-shadow(0 5px 7px rgba(0,0,0,.55))}
+    .hint{opacity:.78;margin-top:8px;font-size:11px}
+    #loading{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:#111;color:#fff;text-align:center}
+    #loading.hide{display:none}
+    #process{display:none}
+  </style>
 </head>
 <body>
-<div id="loading"><div><h2>📚 AR Educativo V2</h2><p id="loadText">Preparando OpenCV…</p></div></div>
+  <div id="loading">
+    <div>
+      <h2>📚 AR Educativo V2</h2>
+      <p id="loadText">Preparando OpenCV…</p>
+    </div>
+  </div>
+  <video id="video" autoplay playsinline muted></video>
+  <canvas id="process"></canvas>
+  <canvas id="overlay"></canvas>
+  <div id="objects"></div>
+  <div id="ui">
+    <h2>📚 AR Educativo V2</h2>
+    <div id="status">Esperando cámara…</div>
+    <button id="start">📷 Iniciar cámara</button>
+    <button id="debug">🔎 Depurar</button>
+    <div class="hint">Mantén los 4 marcadores de esquina y los 16 puntos dentro de la cámara.</div>
+  </div>
 
-<video id="video" autoplay playsinline muted></video>
-<canvas id="process"></canvas>
-<canvas id="overlay"></canvas>
-<div id="objects"></div>
+  <script async src="https://docs.opencv.org/4.x/opencv.js"></script>
+  <script>
+  (() => {
+    const video = document.getElementById('video');
+    const processCanvas = document.getElementById('process');
+    const pctx = processCanvas.getContext('2d', {willReadFrequently:true});
+    const overlay = document.getElementById('overlay');
+    const octx = overlay.getContext('2d');
+    const objects = document.getElementById('objects');
+    const statusEl = document.getElementById('status');
+    const loading = document.getElementById('loading');
+    const startBtn = document.getElementById('start');
+    const debugBtn = document.getElementById('debug');
 
-<div id="ui">
-  <h2>📚 AR Educativo V2</h2>
-  <div id="status">Esperando cámara…</div>
-  <button id="start">📷 Iniciar cámara</button>
-  <button id="debug">🔎 Depurar</button>
-  <div class="hint">Mantén los 4 marcadores de esquina y los 16 puntos dentro de la cámara.</div>
-</div>
+    let stream = null;
+    let running = false;
+    let debug = false;
+    let frameCounter = 0;
 
-<script async src="https://docs.opencv.org/4.x/opencv.js"></script>
-<script>
-(() => {
-  const video = document.getElementById('video');
-  const processCanvas = document.getElementById('process');
-  const pctx = processCanvas.getContext('2d', {willReadFrequently:true});
-  const overlay = document.getElementById('overlay');
-  const octx = overlay.getContext('2d');
-  const objects = document.getElementById('objects');
-  const statusEl = document.getElementById('status');
-  const loading = document.getElementById('loading');
-  const startBtn = document.getElementById('start');
-  const debugBtn = document.getElementById('debug');
-
-  let stream = null;
-  let running = false;
-  let debug = false;
-  let frameCounter = 0;
-
-  // Coordenadas de los 16 puntos en la plantilla V2.
-  // Sistema canónico: 1280 x 800.
-  // Las imágenes quedan asociadas a estas coordenadas, NO a coordenadas de pantalla.
-  const templateW = 1280;
-  const templateH = 800;
-  const templatePoints = [];
-  const xs = [417, 566, 714, 863];
-  const ys = [210, 335, 460, 586];
-  for (let r=0; r<4; r++) for (let c=0; c<4; c++) {
-    templatePoints.push({x:xs[c], y:ys[r]});
-  }
-
-  const educational = [
-    ['📖','Libro'], ['✏️','Lápiz'], ['📏','Regla'], ['✂️','Tijeras'],
-    ['📓','Cuaderno'], ['🧮','Cálculo'], ['🌎','Planeta'], ['🍎','Manzana'],
-    ['💡','Idea'], ['🔬','Ciencia'], ['🔭','Astronomía'], ['🧪','Experimento'],
-    ['🎨','Arte'], ['🎵','Música'], ['🔢','Matemática'], ['💻','Computador']
-  ];
-
-  function svgData(icon, label) {
-    const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="220" height="220" viewBox="0 0 220 220">
-      <rect x="6" y="6" width="208" height="208" rx="34" fill="#fff" stroke="#1976d2" stroke-width="8"/>
-      <text x="110" y="105" text-anchor="middle" dominant-baseline="middle" font-size="88">${esc(icon)}</text>
-      <text x="110" y="184" text-anchor="middle" font-family="Arial,sans-serif" font-size="17" font-weight="700" fill="#111">${esc(label)}</text>
-    </svg>`;
-    return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
-  }
-
-  function buildObjects() {
-    objects.innerHTML = '';
-    educational.forEach((item, i) => {
-      const d = document.createElement('div');
-      d.className = 'obj';
-      d.dataset.i = i;
-      const img = document.createElement('img');
-      img.src = svgData(item[0], item[1]);
-      img.alt = item[1];
-      d.appendChild(img);
-      objects.appendChild(d);
-    });
-  }
-
-  function resize() {
-    overlay.width = innerWidth;
-    overlay.height = innerHeight;
-  }
-  addEventListener('resize', resize);
-  resize();
-  buildObjects();
-
-  function setStatus(s) { statusEl.textContent = s; }
-
-  async function startCamera() {
-    if (!window.isSecureContext && location.hostname !== 'localhost') {
-      setStatus('⚠️ La cámara necesita HTTPS (o localhost).');
-      return;
+    // Coordenadas de los 16 puntos en la plantilla V2.
+    // Sistema canónico: 1280 x 800.
+    const templateW = 1280;
+    const templateH = 800;
+    const templatePoints = [];
+    const xs = [417, 566, 714, 863];
+    const ys = [210, 335, 460, 586];
+    for (let r=0; r<4; r++) for (let c=0; c<4; c++) {
+      templatePoints.push({x:xs[c], y:ys[r]});
     }
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: {facingMode:{ideal:'environment'}, width:{ideal:1280}, height:{ideal:720}},
-        audio:false
-      });
-      video.srcObject = stream;
-      await video.play();
-      loading.classList.add('hide');
-      running = true;
-      setStatus('🔎 Buscando plantilla V2…');
-      requestAnimationFrame(loop);
-    } catch (e) {
-      console.error(e);
-      setStatus('❌ No se pudo abrir la cámara: ' + e.message);
-    }
-  }
-  startBtn.addEventListener('click', startCamera);
-  debugBtn.addEventListener('click', () => {
-    debug = !debug;
-    debugBtn.textContent = debug ? '🙈 Ocultar depuración' : '🔎 Depurar';
-  });
 
-  function matToPoints(mat) {
-    const out = [];
-    for (let i=0;i<mat.rows;i++) out.push({x:mat.floatAt(i,0), y:mat.floatAt(i,1)});
-    return out;
-  }
-
-  function orderQuad(pts) {
-    // Devuelve TL, TR, BR, BL
-    const sum = pts.map(p => p.x+p.y);
-    const diff = pts.map(p => p.x-p.y);
-    return [
-      pts[sum.indexOf(Math.min(...sum))],
-      pts[diff.indexOf(Math.max(...diff))],
-      pts[sum.indexOf(Math.max(...sum))],
-      pts[diff.indexOf(Math.min(...diff))]
+    const educational = [
+      ['📖','Libro'], ['✏️','Lápiz'], ['📏','Regla'], ['✂️','Tijeras'],
+      ['📓','Cuaderno'], ['🧮','Cálculo'], ['🌎','Planeta'], ['🍎','Manzana'],
+      ['💡','Idea'], ['🔬','Ciencia'], ['🔭','Astronomía'], ['🧪','Experimento'],
+      ['🎨','Arte'], ['🎵','Música'], ['🔢','Matemática'], ['💻','Computador']
     ];
-  }
 
-  function findPaperQuad(src) {
-    const gray = new cv.Mat(), blur = new cv.Mat(), edge = new cv.Mat();
-    const contours = new cv.MatVector(), hierarchy = new cv.Mat();
-    cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
-    cv.GaussianBlur(gray, blur, new cv.Size(5,5), 0);
-    cv.Canny(blur, edge, 50, 150);
-    cv.dilate(edge, edge, new cv.Mat(), new cv.Point(-1,-1), 1);
-
-    cv.findContours(edge, contours, hierarchy, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE);
-
-    let best = null, bestArea = 0;
-    for (let i=0;i<contours.size();i++) {
-      const c = contours.get(i);
-      const peri = cv.arcLength(c,true);
-      const approx = new cv.Mat();
-      cv.approxPolyDP(c, approx, 0.025*peri, true);
-      if (approx.rows === 4) {
-        const area = Math.abs(cv.contourArea(approx));
-        const rect = cv.boundingRect(approx);
-        const fill = area / Math.max(1, rect.width*rect.height);
-        if (area > bestArea && rect.width > src.cols*0.20 && rect.height > src.rows*0.20 && fill > 0.55) {
-          const pts = [];
-          for (let k=0;k<4;k++) pts.push({x:approx.intAt(k,0), y:approx.intAt(k,1)});
-          best = orderQuad(pts);
-          bestArea = area;
-        }
-      }
-      c.delete();
+    function svgData(icon, label) {
+      const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="220" height="220" viewBox="0 0 220 220">
+        <rect x="6" y="6" width="208" height="208" rx="34" fill="#fff" stroke="#1976d2" stroke-width="8"/>
+        <text x="110" y="105" text-anchor="middle" dominant-baseline="middle" font-size="88">${esc(icon)}</text>
+        <text x="110" y="184" text-anchor="middle" font-family="Arial,sans-serif" font-size="17" font-weight="700" fill="#111">${esc(label)}</text>
+      </svg>`;
+      return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
     }
-    gray.delete(); blur.delete(); edge.delete(); contours.delete(); hierarchy.delete();
-    return best;
-  }
 
-  function findDotsInWarp(warp) {
-    const gray = new cv.Mat(), bw = new cv.Mat(), contours = new cv.MatVector(), hierarchy = new cv.Mat();
-    cv.cvtColor(warp, gray, cv.COLOR_RGBA2GRAY);
-    cv.threshold(gray, bw, 110, 255, cv.THRESH_BINARY_INV);
-    // Abrir suavemente para eliminar pequeños artefactos, sin destruir los puntos.
-    const kernel = cv.Mat.ones(3,3,cv.CV_8U);
-    cv.morphologyEx(bw, bw, cv.MORPH_OPEN, kernel);
-    cv.findContours(bw, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
-
-    const candidates = [];
-    for (let i=0;i<contours.size();i++) {
-      const c = contours.get(i);
-      const area = cv.contourArea(c);
-      const peri = cv.arcLength(c,true);
-      if (area > 180 && area < 6000 && peri > 0) {
-        const circularity = 4*Math.PI*area/(peri*peri);
-        const rect = cv.boundingRect(c);
-        const ratio = rect.width/Math.max(1,rect.height);
-        if (circularity > 0.60 && ratio > 0.65 && ratio < 1.35) {
-          const m = cv.moments(c);
-          if (m.m00) candidates.push({x:m.m10/m.m00,y:m.m01/m.m00,area});
-        }
-      }
-      c.delete();
-    }
-    kernel.delete(); gray.delete(); bw.delete(); contours.delete(); hierarchy.delete();
-
-    // En la imagen "warp" también pueden aparecer partes de los marcadores de esquina.
-    // Nos quedamos con los 16 candidatos más cercanos a las posiciones esperadas.
-    const selected = [];
-    const used = new Set();
-    for (const tp of templatePoints) {
-      let best=-1, bd=Infinity;
-      candidates.forEach((p,i)=>{
-        if (used.has(i)) return;
-        const dx=(p.x-tp.x), dy=(p.y-tp.y);
-        const d=dx*dx+dy*dy;
-        if (d<bd) {bd=d;best=i;}
+    function buildObjects() {
+      objects.innerHTML = '';
+      educational.forEach((item, i) => {
+        const d = document.createElement('div');
+        d.className = 'obj';
+        d.dataset.i = i;
+        const img = document.createElement('img');
+        img.src = svgData(item[0], item[1]);
+        img.alt = item[1];
+        d.appendChild(img);
+        objects.appendChild(d);
       });
-      // Tolerancia amplia para permitir perspectiva/impresión.
-      if (best>=0 && bd < 115*115) { used.add(best); selected.push({x:candidates[best].x,y:candidates[best].y}); }
-      else selected.push(null);
     }
-    return selected;
-  }
 
-  function getHomography(srcQuad) {
-    const srcPts = cv.matFromArray(4,2,cv.CV_32F,[
-      srcQuad[0].x,srcQuad[0].y,
-      srcQuad[1].x,srcQuad[1].y,
-      srcQuad[2].x,srcQuad[2].y,
-      srcQuad[3].x,srcQuad[3].y
-    ]);
-    const dstPts = cv.matFromArray(4,2,cv.CV_32F,[
-      0,0, templateW,0, templateW,templateH, 0,templateH
-    ]);
-    const H = cv.getPerspectiveTransform(srcPts,dstPts);
-    srcPts.delete(); dstPts.delete();
-    return H;
-  }
+    function resize() {
+      overlay.width = innerWidth;
+      overlay.height = innerHeight;
+    }
+    addEventListener('resize', resize);
+    resize();
+    buildObjects();
 
-  function projectPoint(Hinv, p) {
-    // Multiplicación homogénea de Hinv por punto canónico.
-    const a=Hinv.data64F;
-    const x=p.x, y=p.y;
-    const w=a[6]*x+a[7]*y+a[8];
-    return {
-      x:(a[0]*x+a[1]*y+a[2])/w,
-      y:(a[3]*x+a[4]*y+a[5])/w
-    };
-  }
+    function setStatus(s) { statusEl.textContent = s; }
 
-  function cameraToScreen(p) {
-    // video object-fit:cover. Convertir coordenadas del video al rectángulo visual.
-    const vw=video.videoWidth, vh=video.videoHeight;
-    const sw=innerWidth, sh=innerHeight;
-    const scale=Math.max(sw/vw, sh/vh);
-    const dw=vw*scale, dh=vh*scale;
-    const ox=(sw-dw)/2, oy=(sh-dh)/2;
-    return {x:p.x*scale+ox, y:p.y*scale+oy};
-  }
-
-  function showObjects(projected, quad) {
-    // Rotación aproximada del papel, útil para que las tarjetas acompañen la orientación.
-    const angle = Math.atan2(quad[1].y-quad[0].y, quad[1].x-quad[0].x) * 180/Math.PI;
-    const els = objects.querySelectorAll('.obj');
-    let count=0;
-    projected.forEach((p,i)=>{
-      const el=els[i];
-      if (!p) { el.style.display='none'; return; }
-      const s=cameraToScreen(p);
-      el.style.left=s.x+'px';
-      el.style.top=s.y+'px';
-      el.style.transform=`translate(-50%,-50%) rotate(${angle}deg)`;
-      el.style.display='block';
-      count++;
+    async function startCamera() {
+      if (!window.isSecureContext && location.hostname !== 'localhost') {
+        setStatus('⚠️ La cámara necesita HTTPS (o localhost).');
+        return;
+      }
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {facingMode:{ideal:'environment'}, width:{ideal:1280}, height:{ideal:720}},
+          audio:false
+        });
+        video.srcObject = stream;
+        await video.play();
+        loading.classList.add('hide');
+        running = true;
+        setStatus('🔎 Buscando plantilla V2…');
+        requestAnimationFrame(loop);
+      } catch (e) {
+        console.error(e);
+        setStatus('❌ No se pudo abrir la cámara: ' + e.message);
+      }
+    }
+    startBtn.addEventListener('click', startCamera);
+    debugBtn.addEventListener('click', () => {
+      debug = !debug;
+      debugBtn.textContent = debug ? '🙈 Ocultar depuración' : '🔎 Depurar';
     });
-    return count;
-  }
 
-  function hideObjects() {
-    objects.querySelectorAll('.obj').forEach(e=>e.style.display='none');
-  }
-
-  function drawDebug(quad, projected) {
-    octx.clearRect(0,0,overlay.width,overlay.height);
-    if (!debug) return;
-    if (quad) {
-      octx.strokeStyle='#00ff66'; octx.lineWidth=4;
-      octx.beginPath();
-      quad.forEach((q,i)=>{ const s=cameraToScreen(q); i?octx.lineTo(s.x,s.y):octx.moveTo(s.x,s.y); });
-      octx.closePath(); octx.stroke();
+    function matToPoints(mat) {
+      const out = [];
+      for (let i=0;i<mat.rows;i++) out.push({x:mat.floatAt(i,0), y:mat.floatAt(i,1)});
+      return out;
     }
-    if (projected) {
-      octx.fillStyle='#00e5ff';
-      projected.forEach((p,i)=>{ if(!p)return; const s=cameraToScreen(p); octx.beginPath(); octx.arc(s.x,s.y,6,0,Math.PI*2); octx.fill(); octx.fillStyle='#fff'; octx.font='bold 14px Arial'; octx.fillText(i+1,s.x+8,s.y-8); octx.fillStyle='#00e5ff'; });
+
+    function orderQuad(pts) {
+      const sum = pts.map(p => p.x+p.y);
+      const diff = pts.map(p => p.x-p.y);
+      return [
+        pts[sum.indexOf(Math.min(...sum))],
+        pts[diff.indexOf(Math.max(...diff))],
+        pts[sum.indexOf(Math.max(...sum))],
+        pts[diff.indexOf(Math.min(...diff))]
+      ];
     }
-  }
 
-  function loop() {
-    if (!running) return;
-    if (!video.videoWidth || !video.videoHeight) { requestAnimationFrame(loop); return; }
+    function findPaperQuad(src) {
+      const gray = new cv.Mat(), blur = new cv.Mat(), edge = new cv.Mat();
+      const contours = new cv.MatVector(), hierarchy = new cv.Mat();
+      cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+      cv.GaussianBlur(gray, blur, new cv.Size(5,5), 0);
+      cv.Canny(blur, edge, 50, 150);
+      cv.dilate(edge, edge, new cv.Mat(), new cv.Point(-1,-1), 1);
 
-    // Procesar cada 2 frames para aliviar CPU en tablets/teléfonos.
-    frameCounter++;
-    if (frameCounter % 2 !== 0) { requestAnimationFrame(loop); return; }
+      cv.findContours(edge, contours, hierarchy, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE);
 
-    processCanvas.width=video.videoWidth;
-    processCanvas.height=video.videoHeight;
-    pctx.drawImage(video,0,0,processCanvas.width,processCanvas.height);
-
-    let src=null, quad=null, H=null, Hinv=null, warp=null;
-    try {
-      src=cv.imread(processCanvas);
-      quad=findPaperQuad(src);
-
-      if (!quad) {
-        hideObjects(); octx.clearRect(0,0,overlay.width,overlay.height);
-        setStatus('🔎 Buscando el rectángulo de la plantilla…');
-        return;
+      let best = null, bestArea = 0;
+      for (let i=0;i<contours.size();i++) {
+        const c = contours.get(i);
+        const peri = cv.arcLength(c,true);
+        const approx = new cv.Mat();
+        cv.approxPolyDP(c, approx, 0.025*peri, true);
+        if (approx.rows === 4) {
+          const area = Math.abs(cv.contourArea(approx));
+          const rect = cv.boundingRect(approx);
+          const fill = area / Math.max(1, rect.width*rect.height);
+          if (area > bestArea && rect.width > src.cols*0.20 && rect.height > src.rows*0.20 && fill > 0.55) {
+            const pts = [];
+            for (let k=0;k<4;k++) pts.push({x:approx.intAt(k,0), y:approx.intAt(k,1)});
+            best = orderQuad(pts);
+            bestArea = area;
+          }
+        }
+        c.delete();
       }
+      gray.delete(); blur.delete(); edge.delete(); contours.delete(); hierarchy.delete();
+      return best;
+    }
 
-      H=getHomography(quad);
-      Hinv=H.inv();
+    function findDotsInWarp(warp) {
+      const gray = new cv.Mat(), bw = new cv.Mat(), contours = new cv.MatVector(), hierarchy = new cv.Mat();
+      cv.cvtColor(warp, gray, cv.COLOR_RGBA2GRAY);
+      cv.threshold(gray, bw, 110, 255, cv.THRESH_BINARY_INV);
+      const kernel = cv.Mat.ones(3,3,cv.CV_8U);
+      cv.morphologyEx(bw, bw, cv.MORPH_OPEN, kernel);
+      cv.findContours(bw, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
 
-      warp=new cv.Mat();
-      const size=new cv.Size(templateW,templateH);
-      cv.warpPerspective(src,warp,H,size,cv.INTER_LINEAR,cv.BORDER_CONSTANT,new cv.Scalar());
+      const candidates = [];
+      for (let i=0;i<contours.size();i++) {
+        const c = contours.get(i);
+        const area = cv.contourArea(c);
+        const peri = cv.arcLength(c,true);
+        if (area > 180 && area < 6000 && peri > 0) {
+          const circularity = 4*Math.PI*area/(peri*peri);
+          const rect = cv.boundingRect(c);
+          const ratio = rect.width/Math.max(1,rect.height);
+          if (circularity > 0.60 && ratio > 0.65 && ratio < 1.35) {
+            const m = cv.moments(c);
+            if (m.m00) candidates.push({x:m.m10/m.m00,y:m.m01/m.m00,area});
+          }
+        }
+        c.delete();
+      }
+      kernel.delete(); gray.delete(); bw.delete(); contours.delete(); hierarchy.delete();
 
-      const dots=findDotsInWarp(warp);
+      const selected = [];
+      const used = new Set();
+      for (const tp of templatePoints) {
+        let best=-1, bd=Infinity;
+        candidates.forEach((p,i)=>{
+          if (used.has(i)) return;
+          const dx=(p.x-tp.x), dy=(p.y-tp.y);
+          const d=dx*dx+dy*dy;
+          if (d<bd) {bd=d;best=i;}
+        });
+        if (best>=0 && bd < 115*115) { used.add(best); selected.push({x:candidates[best].x,y:candidates[best].y}); }
+        else selected.push(null);
+      }
+      return selected;
+    }
 
-      // En la V2 exigimos las 16 marcas para mostrar todos los objetos.
-      const valid=dots.filter(Boolean).length;
-      if (valid < 16) {
+    function getHomography(srcQuad) {
+      const srcPts = cv.matFromArray(4,2,cv.CV_32F,[
+        srcQuad[0].x,srcQuad[0].y,
+        srcQuad[1].x,srcQuad[1].y,
+        srcQuad[2].x,srcQuad[2].y,
+        srcQuad[3].x,srcQuad[3].y
+      ]);
+      const dstPts = cv.matFromArray(4,2,cv.CV_32F,[
+        0,0, templateW,0, templateW,templateH, 0,templateH
+      ]);
+      const H = cv.getPerspectiveTransform(srcPts,dstPts);
+      srcPts.delete(); dstPts.delete();
+      return H;
+    }
+
+    function projectPoint(Hinv, p) {
+      const a=Hinv.data64F;
+      const x=p.x, y=p.y;
+      const w=a[6]*x+a[7]*y+a[8];
+      return {
+        x:(a[0]*x+a[1]*y+a[2])/w,
+        y:(a[3]*x+a[4]*y+a[5])/w
+      };
+    }
+
+    function cameraToScreen(p) {
+      const vw=video.videoWidth, vh=video.videoHeight;
+      const sw=innerWidth, sh=innerHeight;
+      const scale=Math.max(sw/vw, sh/vh);
+      const dw=vw*scale, dh=vh*scale;
+      const ox=(sw-dw)/2, oy=(sh-dh)/2;
+      return {x:p.x*scale+ox, y:p.y*scale+oy};
+    }
+
+    function showObjects(projected, quad) {
+      const angle = Math.atan2(quad[1].y-quad[0].y, quad[1].x-quad[0].x) * 180/Math.PI;
+      const els = objects.querySelectorAll('.obj');
+      let count=0;
+      projected.forEach((p,i)=>{
+        const el=els[i];
+        if (!p) { el.style.display='none'; return; }
+        const s=cameraToScreen(p);
+        el.style.left=s.x+'px';
+        el.style.top=s.y+'px';
+        el.style.transform=`translate(-50%,-50%) rotate(${angle}deg)`;
+        el.style.display='block';
+        count++;
+      });
+      return count;
+    }
+
+    function hideObjects() {
+      objects.querySelectorAll('.obj').forEach(e=>e.style.display='none');
+    }
+
+    function drawDebug(quad, projected) {
+      octx.clearRect(0,0,overlay.width,overlay.height);
+      if (!debug) return;
+      if (quad) {
+        octx.strokeStyle='#00ff66'; octx.lineWidth=4;
+        octx.beginPath();
+        quad.forEach((q,i)=>{ const s=cameraToScreen(q); i?octx.lineTo(s.x,s.y):octx.moveTo(s.x,s.y); });
+        octx.closePath(); octx.stroke();
+      }
+      if (projected) {
+        octx.fillStyle='#00e5ff';
+        projected.forEach((p,i)=>{ 
+          if(!p)return; 
+          const s=cameraToScreen(p); 
+          octx.beginPath(); octx.arc(s.x,s.y,6,0,Math.PI*2); octx.fill(); 
+          octx.fillStyle='#fff'; octx.font='bold 14px Arial'; octx.fillText(i+1,s.x+8,s.y-8); 
+          octx.fillStyle='#00e5ff'; 
+        });
+      }
+    }
+
+    function loop() {
+      if (!running) return;
+      if (!video.videoWidth || !video.videoHeight) { requestAnimationFrame(loop); return; }
+
+      frameCounter++;
+      if (frameCounter % 2 !== 0) { requestAnimationFrame(loop); return; }
+
+      processCanvas.width=video.videoWidth;
+      processCanvas.height=video.videoHeight;
+      pctx.drawImage(video,0,0,processCanvas.width,processCanvas.height);
+
+      let src=null, quad=null, H=null, Hinv=null, warp=null;
+      try {
+        src=cv.imread(processCanvas);
+        quad=findPaperQuad(src);
+
+        if (!quad) {
+          hideObjects(); octx.clearRect(0,0,overlay.width,overlay.height);
+          setStatus('🔎 Buscando el rectángulo de la plantilla…');
+          return;
+        }
+
+        H=getHomography(quad);
+        Hinv=H.inv();
+
+        warp=new cv.Mat();
+        const size=new cv.Size(templateW,templateH);
+        cv.warpPerspective(src,warp,H,size,cv.INTER_LINEAR,cv.BORDER_CONSTANT,new cv.Scalar());
+
+        const dots=findDotsInWarp(warp);
+
+        // --- MODIFICACIÓN CLAVE AQUÍ ---
+        // Ahora permitimos que funcione si detecta al menos 10 marcas (antes eran 16 obligatorias)
+        const valid=dots.filter(Boolean).length;
+        if (valid < 10) {
+          hideObjects();
+          drawDebug(quad, null);
+          setStatus(`🟡 Plantilla detectada. Marcas: ${valid}/16 (Acerca más la cámara)`);
+          return;
+        }
+
+        const projected=templatePoints.map(tp=>projectPoint(Hinv,tp));
+        const shown=showObjects(projected,quad);
+        drawDebug(quad,projected);
+        setStatus(`🟢 AR Activa · Mostrando ${shown}/16 objetos`);
+
+      } catch(e) {
+        console.error(e);
         hideObjects();
-        drawDebug(quad, null);
-        setStatus(`🟡 Plantilla encontrada. Marcas: ${valid}/16`);
-        return;
+        setStatus('⚠️ Error de detección. Acerca o aleja la plantilla.');
+      } finally {
+        if (src) src.delete();
+        if (H) H.delete();
+        if (Hinv) Hinv.delete();
+        if (warp) warp.delete();
+        requestAnimationFrame(loop);
       }
-
-      // En vez de usar los puntos detectados directamente, usamos sus posiciones canónicas.
-      // Hinv transforma cada punto de la plantilla a la posición real en la cámara.
-      const projected=templatePoints.map(tp=>projectPoint(Hinv,tp));
-      const shown=showObjects(projected,quad);
-      drawDebug(quad,projected);
-      setStatus(`🟢 Plantilla activa · ${shown}/16 imágenes siguiendo los puntos`);
-
-    } catch(e) {
-      console.error(e);
-      hideObjects();
-      setStatus('⚠️ Error de detección. Acerca o aleja la plantilla.');
-    } finally {
-      if (src) src.delete();
-      if (H) H.delete();
-      if (Hinv) Hinv.delete();
-      if (warp) warp.delete();
-      requestAnimationFrame(loop);
     }
-  }
 
-  // Esperar a que OpenCV termine de cargar.
-  let waitTicks = 0;
-  const wait = setInterval(() => {
-    waitTicks++;
-    if (typeof cv !== 'undefined' && cv.Mat) {
-      clearInterval(wait);
-      loading.querySelector('p').textContent='OpenCV listo.';
-      loading.classList.add('hide');
-      setStatus('🟢 Listo. Pulsa «Iniciar cámara».');
-    } else if (waitTicks > 75) {
-      clearInterval(wait);
-      loading.classList.add('hide');
-      setStatus('⚠️ OpenCV no cargó. La interfaz sigue disponible; revisa tu conexión a Internet.');
-    }
-  }, 200);
+    let waitTicks = 0;
+    const wait = setInterval(() => {
+      waitTicks++;
+      if (typeof cv !== 'undefined' && cv.Mat) {
+        clearInterval(wait);
+        loading.querySelector('p').textContent='OpenCV listo.';
+        loading.classList.add('hide');
+        setStatus('🟢 Listo. Pulsa «Iniciar cámara».');
+      } else if (waitTicks > 75) {
+        clearInterval(wait);
+        loading.classList.add('hide');
+        setStatus('⚠️ OpenCV no cargó. Revisa tu conexión a Internet.');
+      }
+    }, 200);
 
-  window.addEventListener('beforeunload',()=>{ if(stream) stream.getTracks().forEach(t=>t.stop()); });
-})();
-</script>
+    window.addEventListener('beforeunload',()=>{ if(stream) stream.getTracks().forEach(t=>t.stop()); });
+  })();
+  </script>
 </body>
 </html>
