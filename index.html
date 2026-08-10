@@ -1,605 +1,393 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Laberinto Galáctico - Competencia Espacial</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap');
-        
-        body {
-            font-family: 'Nunito', sans-serif;
-            background-color: #0a0f1d;
-            color: white;
-            overflow: hidden;
-            user-select: none;
-            touch-action: manipulation;
-        }
-
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
-        .animate-fade-in { animation: fadeIn 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
-        
-        @keyframes bounce-fast { 0%, 100% { transform: translateY(-10%) scale(1.1); } 50% { transform: translateY(5%) scale(1.1); } }
-        .animate-bounce-fast { animation: bounce-fast 0.5s infinite ease-in-out; }
-
-        .view { display: none; width: 100%; height: 100%; }
-        .view.active { display: flex; }
-
-        /* Ajuste responsivo estricto para los canvas del laberinto */
-        canvas {
-            image-rendering: pixelated;
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.4);
-            border-radius: 12px;
-            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
-        }
-
-        /* Hacer que los QR se escalen automáticamente sin deformarse */
-        #qr-code-1 img, #qr-code-1 canvas,
-        #qr-code-2 img, #qr-code-2 canvas {
-            width: 100% !important;
-            height: auto !important;
-        }
-
-        /* D-Pad Buttons Styling adaptables */
-        .dpad-btn {
-            background: rgba(255,255,255,0.9);
-            border-bottom: 8px solid rgba(200,200,200,1);
-            border-radius: 1rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 100%;
-            height: 100%;
-            transition: all 0.1s;
-        }
-        .dpad-btn:active {
-            transform: translateY(8px);
-            border-bottom-width: 0px;
-        }
-        .bg-red-theme .dpad-btn { background: #fecaca; border-color: #f87171; color: #b91c1c; }
-        .bg-red-theme .dpad-btn:active { background: #f87171; }
-        
-        .bg-blue-theme .dpad-btn { background: #bfdbfe; border-color: #60a5fa; color: #1d4ed8; }
-        .bg-blue-theme .dpad-btn:active { background: #60a5fa; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>AR Educativo V2 - Puntos persistentes</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000;font-family:Arial,sans-serif}
+  #video{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
+  #overlay{position:fixed;inset:0;width:100%;height:100%;pointer-events:none}
+  #ui{position:fixed;z-index:20;left:12px;top:12px;max-width:360px;color:#fff;background:rgba(0,0,0,.68);padding:12px 14px;border-radius:16px;backdrop-filter:blur(8px)}
+  #ui h2{margin:0 0 8px;font-size:18px}
+  #status{font-size:13px;line-height:1.35;margin-bottom:9px}
+  button{border:0;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer}
+  #start{background:#00c853;color:#fff}
+  #debug{background:#fff;color:#111;margin-left:6px}
+  #objects{position:fixed;inset:0;z-index:10;pointer-events:none}
+  .obj{position:absolute;left:0;top:0;width:94px;height:94px;transform:translate(-50%,-50%);display:none;will-change:left,top,transform}
+  .obj img{width:100%;height:100%;display:block;filter:drop-shadow(0 5px 7px rgba(0,0,0,.55))}
+  .hint{opacity:.78;margin-top:8px;font-size:11px}
+  #loading{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:#111;color:#fff;text-align:center}
+  #loading.hide{display:none}
+  #process{display:none}
+</style>
 </head>
-<body class="h-screen w-screen flex items-center justify-center p-1 sm:p-2 selection:bg-blue-500/30">
+<body>
+<div id="loading"><div><h2>📚 AR Educativo V2</h2><p id="loadText">Preparando OpenCV…</p></div></div>
 
-    <div id="welcome-overlay" class="fixed inset-0 z-[100] bg-[#0a0f1d] flex flex-col items-center justify-center text-center p-4 transition-opacity duration-500">
-        <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/40 via-[#0a0f1d] to-[#0a0f1d]"></div>
-        <div class="text-6xl sm:text-8xl mb-6 sm:mb-8 animate-bounce z-10">🌌</div>
-        <h2 class="text-[clamp(2rem,6vw,4rem)] font-black text-white mb-8 drop-shadow-md z-10 leading-tight">Laberinto Galáctico</h2>
-        <button onclick="startWelcome()" class="z-10 bg-gradient-to-r from-cyan-400 to-blue-600 hover:from-cyan-300 hover:to-blue-500 text-white font-black text-xl sm:text-3xl py-4 sm:py-6 px-8 sm:px-12 rounded-[3rem] shadow-[0_0_30px_rgba(6,182,212,0.5)] transition-transform hover:scale-110 border-b-4 border-blue-800">
-            INICIAR MISIÓN 🚀
-        </button>
-    </div>
+<video id="video" autoplay playsinline muted></video>
+<canvas id="process"></canvas>
+<canvas id="overlay"></canvas>
+<div id="objects"></div>
 
-    <div class="fixed inset-0 overflow-hidden pointer-events-none z-0">
-        <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/40 via-[#0a0f1d] to-[#0a0f1d]"></div>
-        <div class="absolute top-0 left-0 w-full h-full bg-blue-500/5 blur-[150px] mix-blend-screen animate-pulse" style="animation-duration: 10s"></div>
-    </div>
+<div id="ui">
+  <h2>📚 AR Educativo V2</h2>
+  <div id="status">Esperando cámara…</div>
+  <button id="start">📷 Iniciar cámara</button>
+  <button id="debug">🔎 Depurar</button>
+  <div class="hint">Mantén los 4 marcadores de esquina y los 16 puntos dentro de la cámara.</div>
+</div>
 
-    <button id="btn-sound" class="absolute top-2 right-2 sm:top-4 sm:right-4 z-50 bg-white/10 hover:bg-white/20 backdrop-blur-md p-2 sm:p-3 rounded-full text-white border border-white/20 cursor-pointer transition-all">
-        <i data-lucide="volume-2" id="icon-sound-on" class="w-4 h-4 sm:w-6 sm:h-6"></i>
-        <i data-lucide="volume-x" id="icon-sound-off" class="w-4 h-4 sm:w-6 sm:h-6 text-red-500 hidden"></i>
-    </button>
+<script async src="https://docs.opencv.org/4.x/opencv.js"></script>
+<script>
+(() => {
+  const video = document.getElementById('video');
+  const processCanvas = document.getElementById('process');
+  const pctx = processCanvas.getContext('2d', {willReadFrequently:true});
+  const overlay = document.getElementById('overlay');
+  const octx = overlay.getContext('2d');
+  const objects = document.getElementById('objects');
+  const statusEl = document.getElementById('status');
+  const loading = document.getElementById('loading');
+  const startBtn = document.getElementById('start');
+  const debugBtn = document.getElementById('debug');
 
-    <div class="absolute bottom-1 w-full flex justify-center z-[150] pointer-events-none opacity-80 px-2">
-        <span class="bg-white/10 backdrop-blur-sm text-cyan-100 text-[8px] sm:text-xs font-bold px-3 py-1 rounded-full shadow-sm border border-cyan-400/30 uppercase tracking-wider text-center line-clamp-1 drop-shadow-md">
-            Creado por Nasslo Muñoz Saez - Ingeniero Informático
-        </span>
-    </div>
+  let stream = null;
+  let running = false;
+  let debug = false;
+  let frameCounter = 0;
 
-    <!-- ============================================== -->
-    <!-- CAJA DEL PROYECTOR (AQUÍ VIVE EL JUEGO VISUAL) -->
-    <!-- ============================================== -->
-    <div id="app-container" class="relative z-10 w-full h-full flex justify-center pb-6 pt-2">
+  // Coordenadas de los 16 puntos en la plantilla V2.
+  // Sistema canónico: 1280 x 800.
+  // Las imágenes quedan asociadas a estas coordenadas, NO a coordenadas de pantalla.
+  const templateW = 1280;
+  const templateH = 800;
+  const templatePoints = [];
+  const xs = [430, 590, 750, 910];
+  const ys = [210, 370, 530, 690];
+  for (let r=0; r<4; r++) for (let c=0; c<4; c++) {
+    templatePoints.push({x:xs[c], y:ys[r]});
+  }
 
-        <!-- MENÚ NIVELES -->
-        <div id="view-menu-level" class="view flex-col items-center justify-center animate-fade-in w-full max-w-5xl px-2">
-            <h1 class="text-[clamp(2rem,6vw,4rem)] font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-500 mb-4 sm:mb-6 text-center drop-shadow-lg uppercase tracking-widest shrink-0 leading-none">
-                Elige Dificultad
-            </h1>
-            <div id="levels-grid" class="flex-1 min-h-0 w-full grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 pb-2 overflow-y-auto no-scrollbar content-center"></div>
-        </div>
+  const educational = [
+    ['📖','Libro'], ['✏️','Lápiz'], ['📏','Regla'], ['✂️','Tijeras'],
+    ['📓','Cuaderno'], ['🧮','Cálculo'], ['🌎','Planeta'], ['🍎','Manzana'],
+    ['💡','Idea'], ['🔬','Ciencia'], ['🔭','Astronomía'], ['🧪','Experimento'],
+    ['🎨','Arte'], ['🎵','Música'], ['🔢','Matemática'], ['💻','Computador']
+  ];
 
-        <!-- MENÚ MODO -->
-        <div id="view-menu-mode" class="view flex-col items-center justify-center animate-fade-in w-full max-w-4xl px-2">
-            <div class="w-full shrink-0 flex justify-start mb-2 sm:mb-6">
-                <button onclick="showView('view-menu-level')" class="flex items-center text-cyan-300 font-bold hover:text-white bg-white/10 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full backdrop-blur-sm border border-cyan-300/30 text-sm sm:text-base transition-all hover:scale-105">
-                    <i data-lucide="arrow-left" class="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2"></i> Cambiar Nivel
-                </button>
-            </div>
-            
-            <div class="text-5xl sm:text-7xl mb-2 sm:mb-4 animate-pulse shrink-0">🛸</div>
-            <h2 class="text-2xl sm:text-4xl font-black text-white mb-6 sm:mb-8 text-center uppercase tracking-wide shrink-0">¿Cómo quieres jugar?</h2>
-            
-            <div class="flex-1 min-h-0 flex flex-col sm:flex-row gap-3 sm:gap-4 w-full justify-center pb-2 items-stretch">
-                <button onclick="startSolo()" class="flex-1 min-h-[120px] bg-gradient-to-br from-green-500 to-emerald-700 hover:from-green-400 hover:to-emerald-600 p-4 sm:p-8 rounded-3xl sm:rounded-[2rem] border-4 border-white/20 shadow-xl transform transition hover:scale-[1.02] flex flex-col items-center justify-center">
-                    <span class="text-4xl sm:text-6xl mb-1 sm:mb-2">👤</span>
-                    <span class="text-xl sm:text-2xl font-black text-white uppercase">Solo</span>
-                    <span class="text-xs sm:text-sm text-green-100">Juega con el teclado</span>
-                </button>
-                <button onclick="startCompete()" class="flex-1 min-h-[120px] bg-gradient-to-br from-red-500 to-orange-600 hover:from-red-400 hover:to-orange-500 p-4 sm:p-8 rounded-3xl sm:rounded-[2rem] border-4 border-white/20 shadow-xl transform transition hover:scale-[1.02] flex flex-col items-center justify-center">
-                    <span class="text-4xl sm:text-6xl mb-1 sm:mb-2">⚔️</span>
-                    <span class="text-xl sm:text-2xl font-black text-white uppercase">Competir</span>
-                    <span class="text-xs sm:text-sm text-red-100 text-center">Usa celulares como control</span>
-                </button>
-            </div>
-        </div>
+  function svgData(icon, label) {
+    const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="220" height="220" viewBox="0 0 220 220">
+      <rect x="6" y="6" width="208" height="208" rx="34" fill="#fff" stroke="#1976d2" stroke-width="8"/>
+      <text x="110" y="105" text-anchor="middle" dominant-baseline="middle" font-size="88">${esc(icon)}</text>
+      <text x="110" y="184" text-anchor="middle" font-family="Arial,sans-serif" font-size="17" font-weight="700" fill="#111">${esc(label)}</text>
+    </svg>`;
+    return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  }
 
-        <!-- JUGANDO SOLO -->
-        <div id="view-playing-solo" class="view flex-col items-center w-full max-w-4xl animate-fade-in justify-between">
-            <div class="w-full shrink-0 flex justify-between items-center mb-2 bg-white/10 backdrop-blur-md p-2 sm:p-3 rounded-xl sm:rounded-2xl border border-white/20 shadow-md">
-                <button onclick="showView('view-menu-level')" class="flex items-center text-cyan-300 font-bold hover:text-white text-xs sm:text-sm transition-transform hover:scale-105">
-                    <i data-lucide="arrow-left" class="w-4 h-4 sm:w-5 sm:h-5 mr-1"></i> Salir
-                </button>
-                <span class="text-white font-black uppercase tracking-widest text-xs sm:text-base">Navegación Manual</span>
-                <div class="w-10"></div>
-            </div>
-            
-            <div class="flex-1 w-full flex items-center justify-center min-h-0 relative p-1">
-                <div class="relative h-full max-h-full max-w-full aspect-square border-4 border-cyan-400/50 rounded-xl sm:rounded-2xl shadow-[0_0_30px_rgba(6,182,212,0.3)] bg-black/60 p-1 sm:p-2">
-                    <canvas id="canvas-solo"></canvas>
-                </div>
-            </div>
-            
-            <div class="shrink-0 text-cyan-200 text-xs sm:text-sm font-bold mt-2 sm:mt-4 animate-pulse bg-cyan-900/30 px-4 py-1 rounded-full border border-cyan-400/30">
-                Usa las flechas del teclado para moverte
-            </div>
-        </div>
+  function buildObjects() {
+    objects.innerHTML = '';
+    educational.forEach((item, i) => {
+      const d = document.createElement('div');
+      d.className = 'obj';
+      d.dataset.i = i;
+      const img = document.createElement('img');
+      img.src = svgData(item[0], item[1]);
+      img.alt = item[1];
+      d.appendChild(img);
+      objects.appendChild(d);
+    });
+  }
 
-        <!-- COMPETENCIA PANTALLA DIVIDIDA -->
-        <div id="view-compete" class="view flex-col items-center w-full max-w-7xl animate-fade-in justify-between">
-            <div class="shrink-0 w-full flex justify-between items-center mb-1 sm:mb-2 bg-white/10 backdrop-blur-md p-2 sm:p-3 rounded-xl sm:rounded-2xl border border-white/20 shadow-md">
-                <button onclick="stopCompete()" class="flex items-center text-cyan-300 font-bold hover:text-white text-xs sm:text-sm transition-transform hover:scale-105">
-                    <i data-lucide="arrow-left" class="w-4 h-4 sm:w-5 sm:h-5 mr-1"></i> Cancelar
-                </button>
-                <h2 class="text-xs sm:text-xl font-black text-white uppercase tracking-widest">Carrera de Laberintos</h2>
-                <div class="w-12 sm:w-20"></div>
-            </div>
+  function resize() {
+    overlay.width = innerWidth;
+    overlay.height = innerHeight;
+  }
+  addEventListener('resize', resize);
+  resize();
+  buildObjects();
 
-            <div class="flex-1 min-h-0 w-full flex flex-row gap-1 sm:gap-4 items-stretch justify-center h-full pb-1">
-                
-                <!-- EQUIPO ROJO -->
-                <div class="flex-1 flex flex-col items-center w-1/2 min-h-0 h-full p-1.5 sm:p-3 bg-red-900/30 rounded-xl sm:rounded-3xl border-2 sm:border-4 border-red-500/30 relative shadow-lg overflow-hidden">
-                    <h3 class="shrink-0 text-[10px] sm:text-xl font-black text-red-400 uppercase mb-1 sm:mb-2 drop-shadow-md">Equipo Rojo</h3>
-                    
-                    <div class="flex-1 w-full min-h-0 flex justify-center items-center relative">
-                        <div class="relative h-full max-h-full max-w-full aspect-square border-2 sm:border-4 border-red-500 rounded-lg sm:rounded-2xl shadow-[0_0_20px_rgba(239,68,68,0.4)] bg-black/60 p-0.5 sm:p-2">
-                            <canvas id="canvas-t1"></canvas>
-                        </div>
-                    </div>
+  function setStatus(s) { statusEl.textContent = s; }
 
-                    <!-- Código QR Adaptable (Más grande) -->
-                    <div id="qr-container-1" class="shrink-0 flex flex-col lg:flex-row items-center justify-center gap-1 sm:gap-3 bg-white/10 p-2 sm:p-3 rounded-lg sm:rounded-xl border border-red-300/30 mt-2 sm:mt-3 w-[95%] sm:w-auto">
-                        <div id="qr-code-1" class="bg-white p-1.5 sm:p-2 rounded-md sm:rounded-lg w-20 sm:w-28 md:w-36 aspect-square flex items-center justify-center"></div>
-                        <span class="text-[8px] sm:text-[10px] md:text-xs font-bold text-red-200 uppercase leading-tight text-center lg:text-left max-w-[120px]">Escanea para controlar</span>
-                    </div>
-                </div>
+  async function startCamera() {
+    if (!window.isSecureContext && location.hostname !== 'localhost') {
+      setStatus('⚠️ La cámara necesita HTTPS (o localhost).');
+      return;
+    }
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: {facingMode:{ideal:'environment'}, width:{ideal:1280}, height:{ideal:720}},
+        audio:false
+      });
+      video.srcObject = stream;
+      await video.play();
+      loading.classList.add('hide');
+      running = true;
+      setStatus('🔎 Buscando plantilla V2…');
+      requestAnimationFrame(loop);
+    } catch (e) {
+      console.error(e);
+      setStatus('❌ No se pudo abrir la cámara: ' + e.message);
+    }
+  }
+  startBtn.addEventListener('click', startCamera);
+  debugBtn.addEventListener('click', () => {
+    debug = !debug;
+    debugBtn.textContent = debug ? '🙈 Ocultar depuración' : '🔎 Depurar';
+  });
 
-                <!-- Divisor -->
-                <div class="shrink-0 flex flex-col justify-center h-full z-20 mx-0.5 sm:mx-1">
-                    <div class="text-yellow-400 font-black text-xs sm:text-2xl drop-shadow-lg transform -rotate-12 bg-black/50 p-1 sm:p-2 rounded-lg border border-yellow-400/30">VS</div>
-                </div>
+  function matToPoints(mat) {
+    const out = [];
+    for (let i=0;i<mat.rows;i++) out.push({x:mat.floatAt(i,0), y:mat.floatAt(i,1)});
+    return out;
+  }
 
-                <!-- EQUIPO AZUL -->
-                <div class="flex-1 flex flex-col items-center w-1/2 min-h-0 h-full p-1.5 sm:p-3 bg-blue-900/30 rounded-xl sm:rounded-3xl border-2 sm:border-4 border-blue-500/30 relative shadow-lg overflow-hidden">
-                    <h3 class="shrink-0 text-[10px] sm:text-xl font-black text-blue-400 uppercase mb-1 sm:mb-2 drop-shadow-md">Equipo Azul</h3>
-                    
-                    <div class="flex-1 w-full min-h-0 flex justify-center items-center relative">
-                        <div class="relative h-full max-h-full max-w-full aspect-square border-2 sm:border-4 border-blue-500 rounded-lg sm:rounded-2xl shadow-[0_0_20px_rgba(59,130,246,0.4)] bg-black/60 p-0.5 sm:p-2">
-                            <canvas id="canvas-t2"></canvas>
-                        </div>
-                    </div>
+  function orderQuad(pts) {
+    // Devuelve TL, TR, BR, BL
+    const sum = pts.map(p => p.x+p.y);
+    const diff = pts.map(p => p.x-p.y);
+    return [
+      pts[sum.indexOf(Math.min(...sum))],
+      pts[diff.indexOf(Math.max(...diff))],
+      pts[sum.indexOf(Math.max(...sum))],
+      pts[diff.indexOf(Math.min(...diff))]
+    ];
+  }
 
-                    <!-- Código QR Adaptable (Más grande) -->
-                    <div id="qr-container-2" class="shrink-0 flex flex-col lg:flex-row items-center justify-center gap-1 sm:gap-3 bg-white/10 p-2 sm:p-3 rounded-lg sm:rounded-xl border border-blue-300/30 mt-2 sm:mt-3 w-[95%] sm:w-auto">
-                        <div id="qr-code-2" class="bg-white p-1.5 sm:p-2 rounded-md sm:rounded-lg w-20 sm:w-28 md:w-36 aspect-square flex items-center justify-center"></div>
-                        <span class="text-[8px] sm:text-[10px] md:text-xs font-bold text-blue-200 uppercase leading-tight text-center lg:text-left max-w-[120px]">Escanea para controlar</span>
-                    </div>
-                </div>
+  function findPaperQuad(src) {
+    const gray = new cv.Mat(), blur = new cv.Mat(), edge = new cv.Mat();
+    const contours = new cv.MatVector(), hierarchy = new cv.Mat();
+    cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+    cv.GaussianBlur(gray, blur, new cv.Size(5,5), 0);
+    cv.Canny(blur, edge, 50, 150);
+    cv.dilate(edge, edge, new cv.Mat(), new cv.Point(-1,-1), 1);
 
-            </div>
-        </div>
+    cv.findContours(edge, contours, hierarchy, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE);
 
-        <!-- VICTORIA -->
-        <div id="view-victory" class="view flex-col items-center justify-center bg-[#0a0f1d]/95 backdrop-blur-xl p-6 sm:p-10 rounded-3xl sm:rounded-[3rem] shadow-2xl border-4 sm:border-8 border-yellow-400 text-center w-full max-w-xl animate-fade-in z-50 mx-2">
-            <i data-lucide="trophy" class="w-20 h-20 sm:w-28 sm:h-28 text-yellow-400 mb-4 sm:mb-6 animate-bounce"></i>
-            <h2 class="text-2xl sm:text-4xl font-black text-white mb-1 sm:mb-2 uppercase tracking-widest drop-shadow-md">¡LABERINTO COMPLETADO!</h2>
-            <h3 id="vic-team" class="text-4xl sm:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-orange-400 mb-6 sm:mb-8 uppercase drop-shadow-md pb-2 leading-tight"></h3>
-            
-            <button onclick="startCompete()" id="btn-rematch" class="bg-gradient-to-r from-cyan-400 to-blue-600 hover:from-cyan-300 hover:to-blue-500 text-white font-black text-lg sm:text-2xl py-3 sm:py-5 px-6 sm:px-10 rounded-xl sm:rounded-[2rem] w-full shadow-lg transition-transform hover:scale-105 uppercase tracking-wider mb-3 sm:mb-4 border-b-4 border-blue-800">
-                Revancha 🚀
-            </button>
-            <button onclick="showView('view-menu-level')" class="bg-white/10 hover:bg-white/20 text-white font-bold text-base sm:text-xl py-3 sm:py-4 px-4 sm:px-6 rounded-xl sm:rounded-2xl w-full transition-all border border-white/20">
-                Volver al Menú
-            </button>
-        </div>
-
-    </div> <!-- FIN CAJA PROYECTOR -->
-
-    <!-- ============================================== -->
-    <!-- CONTROL REMOTO (TOTALMENTE INDEPENDIENTE AFUERA) -->
-    <!-- ============================================== -->
-    <div id="remote-view" class="fixed inset-0 z-[300] hidden flex-col items-center justify-center p-4 w-screen min-h-screen bg-[#0a0f1d] transition-colors duration-300">
-        <h1 class="text-3xl sm:text-5xl font-black text-white mb-4 sm:mb-8 drop-shadow-md tracking-widest shrink-0">EQUIPO <span id="remote-team-name"></span></h1>
-        
-        <div id="remote-status" class="mb-4 sm:mb-8 text-white font-bold opacity-80 animate-pulse text-sm sm:text-lg bg-black/30 px-4 py-2 rounded-full">Conectando a la nave...</div>
-
-        <!-- Joystick Flexible -->
-        <div class="flex-1 w-full min-h-0 flex items-center justify-center pb-8">
-            <div class="grid grid-cols-3 grid-rows-3 gap-2 sm:gap-3 w-full max-w-[85vw] sm:max-w-[400px] aspect-square">
-                <div></div>
-                <button onpointerdown="sendMove('up')" class="dpad-btn"><i data-lucide="arrow-up" class="w-10 h-10 sm:w-16 sm:h-16"></i></button>
-                <div></div>
-                
-                <button onpointerdown="sendMove('left')" class="dpad-btn"><i data-lucide="arrow-left" class="w-10 h-10 sm:w-16 sm:h-16"></i></button>
-                <div class="flex items-center justify-center text-3xl sm:text-5xl opacity-50 font-black filter drop-shadow-lg">🕹️</div>
-                <button onpointerdown="sendMove('right')" class="dpad-btn"><i data-lucide="arrow-right" class="w-10 h-10 sm:w-16 sm:h-16"></i></button>
-                
-                <div></div>
-                <button onpointerdown="sendMove('down')" class="dpad-btn"><i data-lucide="arrow-down" class="w-10 h-10 sm:w-16 sm:h-16"></i></button>
-                <div></div>
-            </div>
-        </div>
-    </div>
-
-
-    <!-- LÓGICA DEL JUEGO INTACTA -->
-    <script>
-        lucide.createIcons();
-
-        const LEVELS = [
-            { id: 'easy', label: 'Principiante', size: 6, color: 'from-green-400 to-emerald-600', icon: '🌱' },
-            { id: 'medium', label: 'Intermedio', size: 10, color: 'from-blue-400 to-cyan-600', icon: '⭐' },
-            { id: 'hard', label: 'Avanzado', size: 15, color: 'from-purple-400 to-fuchsia-600', icon: '🔥' },
-            { id: 'expert', label: 'Experto', size: 20, color: 'from-red-500 to-orange-600', icon: '💀' }
-        ];
-
-        let state = {
-            soundEnabled: true,
-            level: null,
-            mazeData: null,
-            isFinished: false,
-            soloPos: {c:0, r:0},
-            t1Pos: {c:0, r:0},
-            t2Pos: {c:0, r:0}
-        };
-
-        // --- SISTEMA DE AUDIO ---
-        let audioCtx = null;
-        function initAudio() { if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); if(audioCtx.state === 'suspended') audioCtx.resume(); }
-        
-        function playSound(type) {
-            if (!state.soundEnabled) return;
-            initAudio();
-            try {
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.connect(gain); gain.connect(audioCtx.destination);
-                const now = audioCtx.currentTime;
-
-                if (type === 'click') {
-                    osc.type = 'square'; osc.frequency.setValueAtTime(600, now); osc.frequency.exponentialRampToValueAtTime(800, now + 0.1);
-                    gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-                    osc.start(now); osc.stop(now + 0.1);
-                } else if (type === 'move') {
-                    osc.type = 'sine'; osc.frequency.setValueAtTime(400, now);
-                    gain.gain.setValueAtTime(0.05, now); gain.gain.linearRampToValueAtTime(0, now + 0.05);
-                    osc.start(now); osc.stop(now + 0.05);
-                } else if (type === 'wall') {
-                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, now);
-                    gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-                    osc.start(now); osc.stop(now + 0.1);
-                } else if (type === 'victory') {
-                    osc.type = 'triangle'; osc.frequency.setValueAtTime(523.25, now); osc.frequency.setValueAtTime(659.25, now+0.2); osc.frequency.setValueAtTime(1046.50, now+0.4);
-                    gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0, now + 1.5);
-                    osc.start(now); osc.stop(now + 1.5);
-                }
-            } catch (e) {}
+    let best = null, bestArea = 0;
+    for (let i=0;i<contours.size();i++) {
+      const c = contours.get(i);
+      const peri = cv.arcLength(c,true);
+      const approx = new cv.Mat();
+      cv.approxPolyDP(c, approx, 0.025*peri, true);
+      if (approx.rows === 4) {
+        const area = Math.abs(cv.contourArea(approx));
+        const rect = cv.boundingRect(approx);
+        const fill = area / Math.max(1, rect.width*rect.height);
+        if (area > bestArea && rect.width > src.cols*0.20 && rect.height > src.rows*0.20 && fill > 0.55) {
+          const pts = [];
+          for (let k=0;k<4;k++) pts.push({x:approx.intAt(k,0), y:approx.intAt(k,1)});
+          best = orderQuad(pts);
+          bestArea = area;
         }
+      }
+      c.delete();
+    }
+    gray.delete(); blur.delete(); edge.delete(); contours.delete(); hierarchy.delete();
+    return best;
+  }
 
-        function speakText(text) {
-            if (!state.soundEnabled || !('speechSynthesis' in window)) return;
-            window.speechSynthesis.cancel();
-            const u = new SpeechSynthesisUtterance(text);
-            u.lang = 'es-MX'; u.pitch = 1.1; u.rate = 1.0;
-            window.speechSynthesis.speak(u);
+  function findDotsInWarp(warp) {
+    const gray = new cv.Mat(), bw = new cv.Mat(), contours = new cv.MatVector(), hierarchy = new cv.Mat();
+    cv.cvtColor(warp, gray, cv.COLOR_RGBA2GRAY);
+    cv.threshold(gray, bw, 110, 255, cv.THRESH_BINARY_INV);
+    // Abrir suavemente para eliminar pequeños artefactos, sin destruir los puntos.
+    const kernel = cv.Mat.ones(3,3,cv.CV_8U);
+    cv.morphologyEx(bw, bw, cv.MORPH_OPEN, kernel);
+    cv.findContours(bw, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+    const candidates = [];
+    for (let i=0;i<contours.size();i++) {
+      const c = contours.get(i);
+      const area = cv.contourArea(c);
+      const peri = cv.arcLength(c,true);
+      if (area > 180 && area < 6000 && peri > 0) {
+        const circularity = 4*Math.PI*area/(peri*peri);
+        const rect = cv.boundingRect(c);
+        const ratio = rect.width/Math.max(1,rect.height);
+        if (circularity > 0.60 && ratio > 0.65 && ratio < 1.35) {
+          const m = cv.moments(c);
+          if (m.m00) candidates.push({x:m.m10/m.m00,y:m.m01/m.m00,area});
         }
+      }
+      c.delete();
+    }
+    kernel.delete(); gray.delete(); bw.delete(); contours.delete(); hierarchy.delete();
 
-        function startWelcome() {
-            document.getElementById('welcome-overlay').style.opacity = '0';
-            setTimeout(() => document.getElementById('welcome-overlay').classList.add('hidden'), 500);
-            initAudio(); speakText("Bienvenido al Laberinto Galáctico");
-            showView('view-menu-level');
-            generateLevelMenu();
-        }
+    // En la imagen "warp" también pueden aparecer partes de los marcadores de esquina.
+    // Nos quedamos con los 16 candidatos más cercanos a las posiciones esperadas.
+    const selected = [];
+    const used = new Set();
+    for (const tp of templatePoints) {
+      let best=-1, bd=Infinity;
+      candidates.forEach((p,i)=>{
+        if (used.has(i)) return;
+        const dx=(p.x-tp.x), dy=(p.y-tp.y);
+        const d=dx*dx+dy*dy;
+        if (d<bd) {bd=d;best=i;}
+      });
+      // Tolerancia amplia para permitir perspectiva/impresión.
+      if (best>=0 && bd < 115*115) { used.add(best); selected.push({x:candidates[best].x,y:candidates[best].y}); }
+      else selected.push(null);
+    }
+    return selected;
+  }
 
-        function showView(id) {
-            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-            document.getElementById(id).classList.add('active');
-        }
+  function getHomography(srcQuad) {
+    const srcPts = cv.matFromArray(4,2,cv.CV_32F,[
+      srcQuad[0].x,srcQuad[0].y,
+      srcQuad[1].x,srcQuad[1].y,
+      srcQuad[2].x,srcQuad[2].y,
+      srcQuad[3].x,srcQuad[3].y
+    ]);
+    const dstPts = cv.matFromArray(4,2,cv.CV_32F,[
+      0,0, templateW,0, templateW,templateH, 0,templateH
+    ]);
+    const H = cv.getPerspectiveTransform(srcPts,dstPts);
+    srcPts.delete(); dstPts.delete();
+    return H;
+  }
 
-        document.getElementById('btn-sound').addEventListener('click', () => {
-            state.soundEnabled = !state.soundEnabled;
-            document.getElementById('icon-sound-on').classList.toggle('hidden', !state.soundEnabled);
-            document.getElementById('icon-sound-off').classList.toggle('hidden', state.soundEnabled);
-            if(state.soundEnabled) playSound('click');
-        });
+  function projectPoint(Hinv, p) {
+    // Multiplicación homogénea de Hinv por punto canónico.
+    const a=Hinv.data64F;
+    const x=p.x, y=p.y;
+    const w=a[6]*x+a[7]*y+a[8];
+    return {
+      x:(a[0]*x+a[1]*y+a[2])/w,
+      y:(a[3]*x+a[4]*y+a[5])/w
+    };
+  }
 
-        // --- MENÚS ---
-        function generateLevelMenu() {
-            const grid = document.getElementById('levels-grid');
-            grid.innerHTML = '';
-            LEVELS.forEach(lvl => {
-                const btn = document.createElement('button');
-                btn.className = `bg-gradient-to-br ${lvl.color} text-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl border-2 sm:border-4 border-white/20 shadow-xl transform transition hover:scale-[1.02] flex items-center justify-between text-left h-full min-h-[100px]`;
-                btn.onclick = () => { playSound('click'); state.level = lvl; showView('view-menu-mode'); };
-                btn.innerHTML = `
-                    <div class="flex-1">
-                        <h3 class="text-xl sm:text-2xl font-black leading-tight mb-1">${lvl.label}</h3>
-                        <span class="text-xs sm:text-sm opacity-80 font-bold block">Cuadrícula ${lvl.size}x${lvl.size}</span>
-                    </div>
-                    <div class="text-4xl sm:text-5xl ml-2 drop-shadow-md">${lvl.icon}</div>
-                `;
-                grid.appendChild(btn);
-            });
-        }
+  function cameraToScreen(p) {
+    // video object-fit:cover. Convertir coordenadas del video al rectángulo visual.
+    const vw=video.videoWidth, vh=video.videoHeight;
+    const sw=innerWidth, sh=innerHeight;
+    const scale=Math.max(sw/vw, sh/vh);
+    const dw=vw*scale, dh=vh*scale;
+    const ox=(sw-dw)/2, oy=(sh-dh)/2;
+    return {x:p.x*scale+ox, y:p.y*scale+oy};
+  }
 
-        // --- GENERADOR DE LABERINTOS (Recursive Backtracker) ---
-        function generateMaze(size) {
-            let cells = [];
-            for (let c=0; c<size; c++) {
-                cells[c] = [];
-                for (let r=0; r<size; r++) {
-                    cells[c][r] = { c, r, visited: false, walls: { top:true, right:true, bottom:true, left:true } };
-                }
-            }
-            
-            let stack = [];
-            let current = cells[0][0];
-            current.visited = true;
-            let unvisited = size * size - 1;
+  function showObjects(projected, quad) {
+    // Rotación aproximada del papel, útil para que las tarjetas acompañen la orientación.
+    const angle = Math.atan2(quad[1].y-quad[0].y, quad[1].x-quad[0].x) * 180/Math.PI;
+    const els = objects.querySelectorAll('.obj');
+    let count=0;
+    projected.forEach((p,i)=>{
+      const el=els[i];
+      if (!p) { el.style.display='none'; return; }
+      const s=cameraToScreen(p);
+      el.style.left=s.x+'px';
+      el.style.top=s.y+'px';
+      el.style.transform=`translate(-50%,-50%) rotate(${angle}deg)`;
+      el.style.display='block';
+      count++;
+    });
+    return count;
+  }
 
-            while (unvisited > 0) {
-                let neighbors = [];
-                let {c, r} = current;
-                if (r > 0 && !cells[c][r-1].visited) neighbors.push(cells[c][r-1]);
-                if (c < size-1 && !cells[c+1][r].visited) neighbors.push(cells[c+1][r]);
-                if (r < size-1 && !cells[c][r+1].visited) neighbors.push(cells[c][r+1]);
-                if (c > 0 && !cells[c-1][r].visited) neighbors.push(cells[c-1][r]);
+  function hideObjects() {
+    objects.querySelectorAll('.obj').forEach(e=>e.style.display='none');
+  }
 
-                if (neighbors.length > 0) {
-                    let next = neighbors[Math.floor(Math.random() * neighbors.length)];
-                    stack.push(current);
-                    if (next.c === current.c && next.r === current.r - 1) { current.walls.top = false; next.walls.bottom = false; }
-                    else if (next.c === current.c + 1 && next.r === current.r) { current.walls.right = false; next.walls.left = false; }
-                    else if (next.c === current.c && next.r === current.r + 1) { current.walls.bottom = false; next.walls.top = false; }
-                    else if (next.c === current.c - 1 && next.r === current.r) { current.walls.left = false; next.walls.right = false; }
-                    current = next;
-                    current.visited = true;
-                    unvisited--;
-                } else if (stack.length > 0) {
-                    current = stack.pop();
-                }
-            }
-            return cells;
-        }
+  function drawDebug(quad, projected) {
+    octx.clearRect(0,0,overlay.width,overlay.height);
+    if (!debug) return;
+    if (quad) {
+      octx.strokeStyle='#00ff66'; octx.lineWidth=4;
+      octx.beginPath();
+      quad.forEach((q,i)=>{ const s=cameraToScreen(q); i?octx.lineTo(s.x,s.y):octx.moveTo(s.x,s.y); });
+      octx.closePath(); octx.stroke();
+    }
+    if (projected) {
+      octx.fillStyle='#00e5ff';
+      projected.forEach((p,i)=>{ if(!p)return; const s=cameraToScreen(p); octx.beginPath(); octx.arc(s.x,s.y,6,0,Math.PI*2); octx.fill(); octx.fillStyle='#fff'; octx.font='bold 14px Arial'; octx.fillText(i+1,s.x+8,s.y-8); octx.fillStyle='#00e5ff'; });
+    }
+  }
 
-        // --- DIBUJADO DE LABERINTO (CANVAS) ---
-        function drawMaze(canvasId, maze, playerPos, playerEmoji) {
-            const canvas = document.getElementById(canvasId);
-            const ctx = canvas.getContext('2d');
-            const size = maze.length;
-            
-            canvas.width = 600;
-            canvas.height = 600;
-            
-            const cellSize = canvas.width / size;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+  function loop() {
+    if (!running) return;
+    if (!video.videoWidth || !video.videoHeight) { requestAnimationFrame(loop); return; }
 
-            // Dibujar paredes
-            ctx.strokeStyle = '#38bdf8';
-            ctx.lineWidth = size > 10 ? 4 : 6;
-            ctx.lineCap = 'round';
+    // Procesar cada 2 frames para aliviar CPU en tablets/teléfonos.
+    frameCounter++;
+    if (frameCounter % 2 !== 0) { requestAnimationFrame(loop); return; }
 
-            ctx.beginPath();
-            for (let c=0; c<size; c++) {
-                for (let r=0; r<size; r++) {
-                    const cell = maze[c][r];
-                    const x = c * cellSize;
-                    const y = r * cellSize;
-                    if (cell.walls.top) { ctx.moveTo(x, y); ctx.lineTo(x+cellSize, y); }
-                    if (cell.walls.right) { ctx.moveTo(x+cellSize, y); ctx.lineTo(x+cellSize, y+cellSize); }
-                    if (cell.walls.bottom) { ctx.moveTo(x, y+cellSize); ctx.lineTo(x+cellSize, y+cellSize); }
-                    if (cell.walls.left) { ctx.moveTo(x, y); ctx.lineTo(x, y+cellSize); }
-                }
-            }
-            ctx.stroke();
+    processCanvas.width=video.videoWidth;
+    processCanvas.height=video.videoHeight;
+    pctx.drawImage(video,0,0,processCanvas.width,processCanvas.height);
 
-            // Dibujar Meta
-            ctx.font = `${cellSize * 0.6}px Arial`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('🌟', (size-1)*cellSize + cellSize/2, (size-1)*cellSize + cellSize/2);
+    let src=null, quad=null, H=null, Hinv=null, warp=null;
+    try {
+      src=cv.imread(processCanvas);
+      quad=findPaperQuad(src);
 
-            // Dibujar Jugador
-            ctx.fillText(playerEmoji, playerPos.c*cellSize + cellSize/2, playerPos.r*cellSize + cellSize/2);
-        }
+      if (!quad) {
+        hideObjects(); octx.clearRect(0,0,overlay.width,overlay.height);
+        setStatus('🔎 Buscando el rectángulo de la plantilla…');
+        return;
+      }
 
-        // --- LÓGICA DE MOVIMIENTO ---
-        function attemptMove(posRef, dir) {
-            if(state.isFinished) return false;
-            let p = state[posRef];
-            let cell = state.mazeData[p.c][p.r];
-            let moved = false;
-            
-            if (dir === 'up' && !cell.walls.top) { p.r--; moved = true; }
-            else if (dir === 'right' && !cell.walls.right) { p.c++; moved = true; }
-            else if (dir === 'down' && !cell.walls.bottom) { p.r++; moved = true; }
-            else if (dir === 'left' && !cell.walls.left) { p.c--; moved = true; }
-            
-            if (moved) playSound('move'); else playSound('wall');
-            return moved;
-        }
+      H=getHomography(quad);
+      Hinv=H.inv();
 
-        function checkWin(posRef, teamName) {
-            const size = state.level.size;
-            if (state[posRef].c === size-1 && state[posRef].r === size-1) {
-                state.isFinished = true;
-                playSound('victory');
-                
-                let text = teamName ? `¡Ganador, ${teamName}!` : "¡Misión completada!";
-                speakText(text);
+      warp=new cv.Mat();
+      const size=new cv.Size(templateW,templateH);
+      cv.warpPerspective(src,warp,H,size,cv.INTER_LINEAR,cv.BORDER_CONSTANT,new cv.Scalar());
 
-                document.getElementById('vic-team').innerText = text;
-                document.getElementById('btn-rematch').style.display = teamName ? 'block' : 'none';
-                
-                // Anuncia a todos los celulares conectados que el juego terminó
-                broadcastToRemotes({ type: 'finish' });
-                
-                setTimeout(() => showView('view-victory'), 800);
-            }
-        }
+      const dots=findDotsInWarp(warp);
 
-        // --- MODO SOLO ---
-        function startSolo() {
-            playSound('click');
-            state.mazeData = generateMaze(state.level.size);
-            state.soloPos = {c:0, r:0};
-            state.isFinished = false;
-            showView('view-playing-solo');
-            drawMaze('canvas-solo', state.mazeData, state.soloPos, '🚀');
-        }
+      // En la V2 exigimos las 16 marcas para mostrar todos los objetos.
+      const valid=dots.filter(Boolean).length;
+      if (valid < 16) {
+        hideObjects();
+        drawDebug(quad, null);
+        setStatus(`🟡 Plantilla encontrada. Marcas: ${valid}/16`);
+        return;
+      }
 
-        document.addEventListener('keydown', (e) => {
-            if (document.getElementById('view-playing-solo').classList.contains('active')) {
-                let dir = null;
-                if (e.key === 'ArrowUp') dir = 'up';
-                if (e.key === 'ArrowRight') dir = 'right';
-                if (e.key === 'ArrowDown') dir = 'down';
-                if (e.key === 'ArrowLeft') dir = 'left';
-                if (dir && attemptMove('soloPos', dir)) {
-                    drawMaze('canvas-solo', state.mazeData, state.soloPos, '🚀');
-                    checkWin('soloPos', null);
-                }
-            }
-        });
+      // En vez de usar los puntos detectados directamente, usamos sus posiciones canónicas.
+      // Hinv transforma cada punto de la plantilla a la posición real en la cámara.
+      const projected=templatePoints.map(tp=>projectPoint(Hinv,tp));
+      const shown=showObjects(projected,quad);
+      drawDebug(quad,projected);
+      setStatus(`🟢 Plantilla activa · ${shown}/16 imágenes siguiendo los puntos`);
 
-        // --- MODO COMPETENCIA (PEERJS) ---
-        let myPeer = null;
-        
-        function startCompete() {
-            playSound('click');
-            state.mazeData = generateMaze(state.level.size);
-            state.t1Pos = {c:0, r:0};
-            state.t2Pos = {c:0, r:0};
-            state.isFinished = false;
-            showView('view-compete');
-            
-            drawMaze('canvas-t1', state.mazeData, state.t1Pos, '🔴');
-            drawMaze('canvas-t2', state.mazeData, state.t2Pos, '🔵');
+    } catch(e) {
+      console.error(e);
+      hideObjects();
+      setStatus('⚠️ Error de detección. Acerca o aleja la plantilla.');
+    } finally {
+      if (src) src.delete();
+      if (H) H.delete();
+      if (Hinv) Hinv.delete();
+      if (warp) warp.delete();
+      requestAnimationFrame(loop);
+    }
+  }
 
-            if (myPeer) myPeer.destroy();
-            
-            document.getElementById('qr-code-1').innerHTML = '<span class="text-[8px] sm:text-xs">Cargando...</span>';
-            document.getElementById('qr-code-2').innerHTML = '<span class="text-[8px] sm:text-xs">Cargando...</span>';
+  // Esperar a que OpenCV termine de cargar.
+  let waitTicks = 0;
+  const wait = setInterval(() => {
+    waitTicks++;
+    if (typeof cv !== 'undefined' && cv.Mat) {
+      clearInterval(wait);
+      loading.querySelector('p').textContent='OpenCV listo.';
+      loading.classList.add('hide');
+      setStatus('🟢 Listo. Pulsa «Iniciar cámara».');
+    } else if (waitTicks > 75) {
+      clearInterval(wait);
+      loading.classList.add('hide');
+      setStatus('⚠️ OpenCV no cargó. La interfaz sigue disponible; revisa tu conexión a Internet.');
+    }
+  }, 200);
 
-            myPeer = new Peer();
-            myPeer.on('open', (id) => {
-                // Genera la url de base de forma segura eliminando parámetros basuras
-                const baseUrl = window.location.origin + window.location.pathname;
-                
-                document.getElementById('qr-code-1').innerHTML = '';
-                document.getElementById('qr-code-2').innerHTML = '';
-                
-                new QRCode(document.getElementById('qr-code-1'), { text: `${baseUrl}?host=${id}&team=1`, width: 200, height: 200 });
-                new QRCode(document.getElementById('qr-code-2'), { text: `${baseUrl}?host=${id}&team=2`, width: 200, height: 200 });
-            });
-
-            myPeer.on('connection', (conn) => {
-                conn.on('data', (data) => {
-                    if (data.type === 'move' && !state.isFinished) {
-                        let posRef = data.team === 1 ? 't1Pos' : 't2Pos';
-                        let emoji = data.team === 1 ? '🔴' : '🔵';
-                        let canvasId = data.team === 1 ? 'canvas-t1' : 'canvas-t2';
-                        
-                        if (attemptMove(posRef, data.dir)) {
-                            drawMaze(canvasId, state.mazeData, state[posRef], emoji);
-                            checkWin(posRef, data.team === 1 ? 'Equipo Rojo' : 'Equipo Azul');
-                        }
-                    }
-                });
-            });
-        }
-
-        function stopCompete() {
-            if (myPeer) myPeer.destroy();
-            showView('view-menu-mode');
-        }
-
-        function broadcastToRemotes(msg) {
-            if (!myPeer || !myPeer.connections) return;
-            for (let peerId in myPeer.connections) {
-                myPeer.connections[peerId].forEach(conn => { if (conn.open) conn.send(msg); });
-            }
-        }
-
-        // --- CONTROL REMOTO CELULAR ---
-        const urlParams = new URLSearchParams(window.location.search);
-        const urlHost = urlParams.get('host');
-        const urlTeam = parseInt(urlParams.get('team'));
-        let hostConnection = null;
-
-        if (urlHost && urlTeam) {
-            // Escondemos los elementos del proyector
-            document.getElementById('welcome-overlay').style.display = 'none';
-            document.getElementById('app-container').style.display = 'none';
-            document.getElementById('btn-sound').style.display = 'none';
-            
-            // Mostramos el control remoto
-            const rView = document.getElementById('remote-view');
-            rView.classList.remove('hidden'); rView.classList.add('flex');
-            rView.classList.add(urlTeam === 1 ? 'bg-red-theme' : 'bg-blue-theme');
-            rView.style.backgroundColor = urlTeam === 1 ? '#7f1d1d' : '#1e3a8a';
-            document.getElementById('remote-team-name').innerText = urlTeam === 1 ? 'ROJO' : 'AZUL';
-
-            myPeer = new Peer();
-            myPeer.on('open', () => {
-                hostConnection = myPeer.connect(urlHost);
-                hostConnection.on('open', () => {
-                    document.getElementById('remote-status').innerText = '✅ Conectado. ¡Busca la salida!';
-                    document.getElementById('remote-status').classList.remove('animate-pulse');
-                    document.getElementById('remote-status').classList.add('bg-green-500/80');
-                });
-                hostConnection.on('data', (data) => {
-                    if (data.type === 'finish') {
-                        document.getElementById('remote-status').innerText = '🏁 ¡Partida Terminada!';
-                        document.getElementById('remote-status').classList.replace('bg-green-500/80', 'bg-yellow-500/80');
-                        if(navigator.vibrate) navigator.vibrate([200, 100, 200]);
-                    }
-                });
-            });
-        }
-
-        function sendMove(dir) {
-            if (hostConnection && hostConnection.open) {
-                hostConnection.send({ type: 'move', team: urlTeam, dir: dir });
-                if(navigator.vibrate) navigator.vibrate(20);
-            }
-        }
-
-    </script>
+  window.addEventListener('beforeunload',()=>{ if(stream) stream.getTracks().forEach(t=>t.stop()); });
+})();
+</script>
 </body>
 </html>
