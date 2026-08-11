@@ -20,10 +20,10 @@
     
     #objects { position: fixed; inset: 0; z-index: 10; pointer-events: none; }
     
-    /* Casillas Cuadradas Más Grandes */
-    .cell { position: absolute; left: 0; top: 0; width: 75px; height: 75px; transform: translate(-50%,-50%); display: none; will-change: left, top, transform; transition: transform 0.2s; }
-    .cell img { width: 100%; height: 100%; filter: drop-shadow(0 6px 10px rgba(0,0,0,.7)); }
-    .cell.active { transform: translate(-50%,-50%) scale(1.35); z-index: 30; } 
+    /* Casillas Cuadradas Más Grandes y Visibles */
+    .cell { position: absolute; left: 0; top: 0; width: 95px; height: 95px; transform: translate(-50%,-50%); display: none; will-change: left, top, transform; transition: transform 0.2s; }
+    .cell img { width: 100%; height: 100%; filter: drop-shadow(0 6px 12px rgba(0,0,0,0.8)); }
+    .cell.active { transform: translate(-50%,-50%) scale(1.3); z-index: 30; } 
 
     /* Panel de Trivia Central Estilo Jumanji */
     #triviaPanel { 
@@ -39,17 +39,17 @@
       padding: 24px; 
       color: #f3e5ab; 
       text-align: center; 
-      box-shadow: 0 0 35px rgba(223, 160, 16, 0.6), inset 0 0 20px rgba(0,0,0,0.9); 
+      box-shadow: 0 0 45px rgba(223, 160, 16, 0.7), inset 0 0 20px rgba(0,0,0,0.9); 
       transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
       z-index: 40; 
       pointer-events: auto; 
     }
     #triviaPanel.show { transform: translate(-50%,-50%) scale(1); }
-    #triviaIcon { font-size: 55px; margin: 0 0 10px 0; text-shadow: 0 0 12px rgba(255,215,0,0.5); }
-    #triviaTitle { color: #ffd700; margin: 0 0 12px; font-size: 24px; font-family: 'Georgia', serif; text-transform: uppercase; letter-spacing: 1.5px; }
-    #triviaQuestion { font-size: 18px; line-height: 1.5; margin-bottom: 22px; color: #fff8e7; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
-    #closeTrivia { background: linear-gradient(180deg, #ffd700 0%, #b8860b 100%); color: #170d06; font-size: 16px; font-weight: bold; border: none; border-radius: 10px; padding: 12px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
-    #closeTrivia:hover { background: linear-gradient(180deg, #ffe44d 0%, #d4af37 100%); }
+    #triviaIcon { font-size: 65px; margin: 0 0 10px 0; text-shadow: 0 0 15px rgba(255,215,0,0.6); }
+    #triviaTitle { color: #ffd700; margin: 0 0 15px; font-size: 26px; font-family: 'Georgia', serif; text-transform: uppercase; letter-spacing: 2px; }
+    #triviaQuestion { font-size: 20px; line-height: 1.4; margin-bottom: 25px; color: #fff8e7; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.9); }
+    #closeTrivia { background: linear-gradient(180deg, #ffd700 0%, #b8860b 100%); color: #170d06; font-size: 18px; font-weight: bold; border: none; border-radius: 12px; padding: 14px 24px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.5); text-transform: uppercase; letter-spacing: 1px; }
+    #closeTrivia:hover { background: linear-gradient(180deg, #ffe44d 0%, #d4af37 100%); transform: scale(1.05); }
 
     #loading { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; background: #111; color: #fff; text-align: center; padding: 20px; }
     #loading.hide { display: none; }
@@ -64,7 +64,7 @@
     <div>
       <div class="spinner"></div>
       <h2>🏕️ AR Aventura</h2>
-      <p id="loadText">Descargando Motor de Visión OpenCV...<br><small>Conectando al servidor...</small></p>
+      <p id="loadText">Descargando Motor de IA...<br><small>Conectando al servidor...</small></p>
     </div>
   </div>
 
@@ -77,17 +77,17 @@
   <div id="ui">
     <h2>🏕️ AR Aventura</h2>
     <div id="status">Esperando cámara...</div>
-    <button id="start">📷 Iniciar cámara</button>
-    <button id="debug">🔎 Ver Rastreador Azul</button>
-    <div style="font-size:11px;color:#aaa;margin-top:8px">Usa tu dado físico. Mueve el cubo AZUL frente a la cámara para interactuar.</div>
+    <button id="start">📷 Iniciar cámara y jugar</button>
+    <button id="debug">🔎 Ver Rastreador</button>
+    <div style="font-size:12px;color:#aaa;margin-top:8px">Mueve el cubo AZUL frente a la cámara para jugar.</div>
   </div>
 
   <!-- Modal Jumanji Central -->
   <div id="triviaPanel">
     <div id="triviaIcon">👑</div>
     <h3 id="triviaTitle">El Rey</h3>
-    <p id="triviaQuestion">¿Nombra un rey de las películas de Disney?</p>
-    <button id="closeTrivia">¡RESPONDIDO!</button>
+    <p id="triviaQuestion">¡Ponte tu corona imaginaria y da una orden real!</p>
+    <button id="closeTrivia">¡HECHO!</button>
   </div>
 
   <script>
@@ -95,8 +95,7 @@
 
     const cdns = [
       "https://docs.opencv.org/4.7.0/opencv.js",
-      "https://cdn.jsdelivr.net/npm/@techstark/opencv-js@4.9.0-development/opencv.js",
-      "https://docs.opencv.org/4.5.5/opencv.js"
+      "https://cdn.jsdelivr.net/npm/@techstark/opencv-js@4.9.0-development/opencv.js"
     ];
 
     let currentCdnIndex = 0;
@@ -105,43 +104,23 @@
       if (window.cvListo) return;
       window.cvListo = true;
       document.getElementById('loading').classList.add('hide');
-      document.getElementById('status').textContent = '🟢 Motor Listo. Pulsa "Iniciar cámara".';
+      document.getElementById('status').textContent = '🟢 Listo. Pulsa "Iniciar cámara".';
     }
 
     function cargarSiguienteCDN() {
       if (currentCdnIndex >= cdns.length) {
-        document.getElementById('loadText').innerHTML = '❌ No se pudo conectar a ningún servidor de OpenCV.<br><br><small>Verifica tu conexión a internet y recarga la página.</small>';
+        document.getElementById('loadText').innerHTML = '❌ Error de conexión.<br><small>Recarga la página.</small>';
         document.querySelector('.spinner').style.display = 'none';
         return;
       }
-
-      const url = cdns[currentCdnIndex];
-      document.getElementById('loadText').innerHTML = `Descargando Motor de Visión OpenCV...<br><small>Probando servidor ${currentCdnIndex + 1} de ${cdns.length}</small>`;
-
-      window.Module = {
-        onRuntimeInitialized: function() {
-          inicializarMotor();
-        }
-      };
-
       const script = document.createElement('script');
-      script.src = url;
+      script.src = cdns[currentCdnIndex];
       script.async = true;
-
-      script.onload = function() {
-        if (typeof cv !== 'undefined' && cv.Mat) {
-          inicializarMotor();
-        }
-      };
-
-      script.onerror = function() {
-        currentCdnIndex++;
-        cargarSiguienteCDN();
-      };
-
+      script.onload = () => { if (typeof cv !== 'undefined' && cv.Mat) inicializarMotor(); };
+      script.onerror = () => { currentCdnIndex++; cargarSiguienteCDN(); };
+      window.Module = { onRuntimeInitialized: inicializarMotor };
       document.head.appendChild(script);
     }
-
     cargarSiguienteCDN();
   </script>
   
@@ -158,20 +137,52 @@
     
     let stream = null, running = false, debug = false, frameCounter = 0;
     let activeCellIndex = -1; 
+    
+    // API de Audio Web para sonidos sin descargar archivos
+    let audioCtx = null;
+    function initAudio() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+    }
+    
+    function playSound(type) {
+      if (!audioCtx) return;
+      const osc = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      osc.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      
+      if (type === 'magic') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.2);
+        gainNode.gain.setValueAtTime(0.4, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+      } else if (type === 'click') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.1);
+        gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+      }
+    }
 
     const templateCorners = [{x: 100, y: 100}, {x: 1180, y: 100}, {x: 1180, y: 700}, {x: 100, y: 700}];
 
+    // Retos interactivos para niños
     const gameData = [
-      {i:'🏰', t:'Castillo', q:'¿Qué tipo de criaturas escupen fuego y vigilan castillos?'},
-      {i:'🦁', t:'León', q:'¿Quién es conocido como el "Rey de la Selva"?'},
-      {i:'👑', t:'El Rey', q:'Nombra a algún rey de las películas de Disney.'},
-      {i:'🐉', t:'Dragón', q:'Si tuvieras un dragón de mascota, ¿qué nombre le pondrías?'},
-      {i:'🧙‍♂️', t:'Mago', q:'Nombra un hechizo mágico famoso.'},
-      {i:'💎', t:'Diamante', q:'¿De qué color son los rubíes y las esmeraldas?'},
-      {i:'⚔️', t:'Espadas', q:'¿Preferirías luchar con espada o con arco y flecha?'},
-      {i:'🐎', t:'Caballo', q:'¿Cómo se llama el sonido que hacen los caballos?'},
-      {i:'🗺️', t:'Mapa', q:'Si encontraras un mapa del tesoro, ¿dónde buscarías primero?'},
-      {i:'💰', t:'Oro', q:'¿Qué comprarías con un cofre lleno de monedas de oro?'}
+      {i:'🏰', t:'Castillo', q:'¡Defiende el castillo! Ponte de pie y haz tu mejor pose de guardia real.'},
+      {i:'🦁', t:'León', q:'¡Muestra tus garras y ruge muy fuerte como el Rey de la Selva!'},
+      {i:'👑', t:'El Rey', q:'¡Ponte tu corona imaginaria y da una orden real con voz muy grave!'},
+      {i:'🐉', t:'Dragón', q:'¡Abre la boca e imagina que escupes fuego por 3 segundos! 🔥'},
+      {i:'🧙‍♂️', t:'Mago', q:'¡Agita tu varita y di las palabras mágicas "Abracadabra, pata de cabra"!'},
+      {i:'💎', t:'Diamante', q:'¡Brilla mucho! Levanta las manos y muévelas rápido como un destello.'},
+      {i:'⚔️', t:'Espadas', q:'¡En guardia! Haz 3 movimientos lentos como si estuvieras en un duelo.'},
+      {i:'🐎', t:'Caballo', q:'¡Trota en tu lugar y haz el sonido de un caballo galopando!'},
+      {i:'🗺️', t:'Mapa', q:'¡Pon tu mano en la frente como un explorador buscando el tesoro!'},
+      {i:'💰', t:'Oro', q:'¡Encontraste el tesoro pirata! Da un salto muy alto de alegría.'}
     ];
 
     const cells = [];
@@ -188,13 +199,13 @@
       cells.push({ x, y, icon: data.i, title: `${i+1}. ${data.t}`, question: data.q });
     }
 
-    // Generador SVG en formato Cuadrado
+    // SVG Mejorado: Cuadrados grandes con un círculo de número bien visible
     function svgCell(icon, num) {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">
-        <rect x="4" y="4" width="92" height="92" rx="16" fill="#ffffff" stroke="#dfa010" stroke-width="6"/>
-        <text x="50" y="58" text-anchor="middle" dominant-baseline="middle" font-size="44">${icon}</text>
-        <rect x="8" y="8" width="28" height="28" rx="8" fill="#f44336"/>
-        <text x="22" y="23" text-anchor="middle" dominant-baseline="middle" font-size="14" font-weight="bold" fill="#fff">${num}</text>
+        <rect x="5" y="5" width="90" height="90" rx="15" fill="#ffffff" stroke="#dfa010" stroke-width="6"/>
+        <text x="50" y="55" text-anchor="middle" dominant-baseline="middle" font-size="52">${icon}</text>
+        <circle cx="20" cy="20" r="18" fill="#f44336" stroke="#fff" stroke-width="3"/>
+        <text x="20" y="22" text-anchor="middle" dominant-baseline="middle" font-size="20" font-weight="900" fill="#fff">${num}</text>
       </svg>`;
       return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
     }
@@ -215,14 +226,15 @@
 
     document.getElementById('start').addEventListener('click', async () => {
       if (!window.cvListo) {
-        alert("Aún se está descargando el motor. Por favor espera unos segundos.");
+        alert("Aún se está descargando la IA. ¡Paciencia!");
         return;
       }
+      initAudio(); // Iniciar motor de audio con el clic del usuario
       try {
         stream = await navigator.mediaDevices.getUserMedia({ video: {facingMode:'environment', width:1280, height:720} });
         video.srcObject = stream; await video.play();
         running = true;
-        statusEl.textContent = 'Buscando anclas y el Cubo Azul...';
+        statusEl.textContent = 'Buscando tablero y el Cubo Azul...';
         requestAnimationFrame(loop);
       } catch (e) { statusEl.textContent = '❌ Error cámara: ' + e.message; }
     });
@@ -230,6 +242,7 @@
     document.getElementById('debug').addEventListener('click', () => { debug = !debug; });
     
     document.getElementById('closeTrivia').addEventListener('click', () => {
+      playSound('click');
       triviaPanel.classList.remove('show');
       setTimeout(() => { activeCellIndex = -1; }, 2000); 
     });
@@ -265,14 +278,11 @@
     function findBlueObject(src, hsv, mask, contours, hierarchy) {
       cv.cvtColor(src, hsv, cv.COLOR_RGBA2RGB);
       cv.cvtColor(hsv, hsv, cv.COLOR_RGB2HSV);
-      
       let low = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [90, 120, 70, 0]);
       let high = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [130, 255, 255, 0]);
       cv.inRange(hsv, low, high, mask);
-      
       cv.findContours(mask, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
       let bestPoint = null, maxArea = 0;
-      
       for (let i = 0; i < contours.size(); i++) {
         let cnt = contours.get(i);
         let area = cv.contourArea(cnt);
@@ -342,13 +352,15 @@
 
             if (cubeScreenPos && activeCellIndex === -1 && !triviaPanel.classList.contains('show')) {
               const dist = Math.hypot(screenPos.x - cubeScreenPos.x, screenPos.y - cubeScreenPos.y);
-              if (dist < 55) { 
+              if (dist < 60) { // Distancia ampliada para las celdas más grandes
                 activeCellIndex = i;
                 el.classList.add('active'); 
                 
                 document.getElementById('triviaIcon').textContent = c.icon;
                 document.getElementById('triviaTitle').textContent = c.title;
                 document.getElementById('triviaQuestion').textContent = c.question;
+                
+                playSound('magic'); // Emitir sonido alegre
                 triviaPanel.classList.add('show');
               } else {
                 el.classList.remove('active');
@@ -373,7 +385,7 @@
           srcPts.delete(); dstPts.delete();
         } else {
           document.querySelectorAll('.cell').forEach(e => e.style.display = 'none');
-          statusEl.textContent = '🔎 Enfoca el marcador base (hoja de anclas)...';
+          statusEl.textContent = '🔎 Enfoca el marcador base (las 4 marcas negras)...';
         }
 
       } catch(e) { console.error(e); 
