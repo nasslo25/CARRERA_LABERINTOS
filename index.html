@@ -3,59 +3,65 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-  <title>AR Aventura - Tablero Interactivo Phygital</title>
+  <title>AR Aventura - Exploración y Emociones</title>
   <style>
     * { box-sizing: border-box; }
     html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     #video { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #000; }
     #overlay { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
     
-    #ui { position: fixed; z-index: 20; left: 12px; top: 12px; max-width: 320px; color: #fff; background: rgba(0,0,0,.8); padding: 14px; border-radius: 12px; backdrop-filter: blur(5px); }
-    #ui h2 { margin: 0 0 10px; font-size: 18px; border-bottom: 1px solid #444; padding-bottom: 8px; }
-    #status { font-size: 14px; font-weight: bold; color: #ffeb3b; margin-bottom: 10px; }
-    button { border: 0; border-radius: 8px; padding: 10px; font-weight: bold; cursor: pointer; background: #00c853; color: #fff; width: 100%; margin-bottom: 6px; }
+    #ui { position: fixed; z-index: 20; left: 12px; top: 12px; max-width: 320px; color: #fff; background: rgba(0,0,0,.85); padding: 16px; border-radius: 12px; backdrop-filter: blur(8px); border: 1px solid #333; }
+    #ui h2 { margin: 0 0 10px; font-size: 18px; border-bottom: 1px solid #555; padding-bottom: 8px; color: #00e5ff; }
+    #status { font-size: 14px; font-weight: bold; color: #ffeb3b; margin-bottom: 12px; }
+    
+    /* Estilos del nuevo desplegable */
+    label { font-size: 13px; color: #ccc; margin-bottom: 4px; display: block; }
+    select { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #555; background: #222; color: #fff; font-size: 15px; margin-bottom: 12px; outline: none; cursor: pointer; }
+    select:focus { border-color: #00c853; }
+    
+    button { border: 0; border-radius: 8px; padding: 12px; font-weight: bold; cursor: pointer; background: #00c853; color: #fff; width: 100%; margin-bottom: 6px; font-size: 15px; transition: background 0.2s; }
     button:hover { background: #00e676; }
-    button#debug { background: #fff; color: #111; }
-    button#debug:hover { background: #eee; }
+    button#debug { background: #444; color: #fff; margin-top: 5px; font-size: 13px; padding: 8px; }
+    button#debug:hover { background: #666; }
     
     #objects { position: fixed; inset: 0; z-index: 10; pointer-events: none; }
     
-    /* Casillas Cuadradas Grandes */
+    /* Casillas Cuadradas */
     .cell { position: absolute; left: 0; top: 0; width: 95px; height: 95px; transform: translate(-50%,-50%); display: none; will-change: left, top, transform; transition: transform 0.2s, left 0.1s ease-out, top 0.1s ease-out; }
     .cell img { width: 100%; height: 100%; filter: drop-shadow(0 6px 12px rgba(0,0,0,0.8)); }
-    .cell.active { transform: translate(-50%,-50%) scale(1.3); z-index: 30; } 
+    .cell.active { transform: translate(-50%,-50%) scale(1.35); z-index: 30; } 
 
-    /* Panel de Trivia Central Estilo Jumanji */
+    /* Panel de Trivia Central */
     #triviaPanel { 
       position: absolute; 
       left: 50%; 
       top: 50%; 
       transform: translate(-50%,-50%) scale(0); 
-      width: 350px; 
-      max-width: 88vw; 
-      background: linear-gradient(145deg, #2c1a0e 0%, #170d06 100%); 
-      border: 4px solid #dfa010; 
+      width: 380px; 
+      max-width: 90vw; 
+      background: linear-gradient(145deg, #1a2a3a 0%, #0d151d 100%); 
+      border: 4px solid #00e5ff; 
       border-radius: 20px; 
       padding: 24px; 
-      color: #f3e5ab; 
+      color: #e0f7fa; 
       text-align: center; 
-      box-shadow: 0 0 45px rgba(223, 160, 16, 0.7), inset 0 0 20px rgba(0,0,0,0.9); 
+      box-shadow: 0 0 50px rgba(0, 229, 255, 0.5), inset 0 0 20px rgba(0,0,0,0.9); 
       transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
       z-index: 40; 
       pointer-events: auto; 
     }
     #triviaPanel.show { transform: translate(-50%,-50%) scale(1); }
-    #triviaIcon { font-size: 65px; margin: 0 0 10px 0; text-shadow: 0 0 15px rgba(255,215,0,0.6); }
-    #triviaTitle { color: #ffd700; margin: 0 0 15px; font-size: 26px; font-family: 'Georgia', serif; text-transform: uppercase; letter-spacing: 2px; }
-    #triviaQuestion { font-size: 20px; line-height: 1.4; margin-bottom: 25px; color: #fff8e7; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.9); }
-    #closeTrivia { background: linear-gradient(180deg, #ffd700 0%, #b8860b 100%); color: #170d06; font-size: 18px; font-weight: bold; border: none; border-radius: 12px; padding: 14px 24px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.5); text-transform: uppercase; letter-spacing: 1px; }
-    #closeTrivia:hover { background: linear-gradient(180deg, #ffe44d 0%, #d4af37 100%); transform: scale(1.05); }
+    #triviaIcon { font-size: 65px; margin: 0 0 10px 0; filter: drop-shadow(0 0 10px rgba(255,255,255,0.3)); }
+    #triviaTitle { color: #00e5ff; margin: 0 0 15px; font-size: 26px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; }
+    #triviaQuestion { font-size: 20px; line-height: 1.4; margin-bottom: 25px; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
+    #closeTrivia { background: linear-gradient(180deg, #00e5ff 0%, #009688 100%); color: #fff; font-size: 18px; font-weight: bold; border: none; border-radius: 12px; padding: 14px 24px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.5); text-transform: uppercase; letter-spacing: 1px; }
+    #closeTrivia:hover { background: linear-gradient(180deg, #18ffff 0%, #00bfa5 100%); transform: scale(1.05); }
 
     #loading { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; background: #111; color: #fff; text-align: center; padding: 20px; }
     #loading.hide { display: none; }
     #process { display: none; }
     
-    .spinner { border: 4px solid rgba(255,255,255,0.1); border-left-color: #00c853; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 15px auto; }
+    .spinner { border: 4px solid rgba(255,255,255,0.1); border-left-color: #00e5ff; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 15px auto; }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
   </style>
 </head>
@@ -63,8 +69,8 @@
   <div id="loading">
     <div>
       <div class="spinner"></div>
-      <h2>🏕️ AR Aventura</h2>
-      <p id="loadText">Cargando Motor de Estabilidad AR...<br><small>Conectando al servidor...</small></p>
+      <h2>🌟 AR Explorador</h2>
+      <p id="loadText">Cargando Motor de IA...<br><small>Conectando al servidor...</small></p>
     </div>
   </div>
 
@@ -75,35 +81,39 @@
   <div id="objects"></div>
   
   <div id="ui">
-    <h2>🏕️ AR Aventura</h2>
+    <h2>🌟 AR Explorador</h2>
     <div id="status">Esperando cámara...</div>
-    <button id="start">📷 Iniciar cámara y jugar</button>
-    <button id="debug">🔎 Modo Depuración</button>
-    <div style="font-size:12px;color:#aaa;margin-top:8px">Mueve el cubo AZUL frente a la cámara para interactuar.</div>
+    
+    <label for="categorySelect">Elige tu Aventura:</label>
+    <select id="categorySelect">
+      <option value="emociones">🧠 Emociones y Salud Mental</option>
+      <option value="cuentos">🗺️ Aventuras y Cuentos</option>
+      <option value="animales">🦁 Mundo Animal</option>
+      <option value="profesiones">👩‍🚒 Profesiones y Oficios</option>
+    </select>
+
+    <button id="start">📷 Iniciar Juego</button>
+    <button id="debug">🔎 Depuración Visual</button>
+    <div style="font-size:11px;color:#aaa;margin-top:10px;line-height:1.4;">Apunta a la plantilla de anclajes. Usa un cubo/ficha AZUL como jugador.</div>
   </div>
 
   <div id="triviaPanel">
-    <div id="triviaIcon">👑</div>
-    <h3 id="triviaTitle">El Rey</h3>
-    <p id="triviaQuestion">¡Ponte tu corona imaginaria y da una orden real!</p>
-    <button id="closeTrivia">¡HECHO!</button>
+    <div id="triviaIcon">🧠</div>
+    <h3 id="triviaTitle">Título</h3>
+    <p id="triviaQuestion">Pregunta o Reto</p>
+    <button id="closeTrivia">¡COMPLETADO!</button>
   </div>
 
   <script>
     window.cvListo = false;
-
-    const cdns = [
-      "https://docs.opencv.org/4.7.0/opencv.js",
-      "https://cdn.jsdelivr.net/npm/@techstark/opencv-js@4.9.0-development/opencv.js"
-    ];
-
+    const cdns = [ "https://docs.opencv.org/4.7.0/opencv.js", "https://cdn.jsdelivr.net/npm/@techstark/opencv-js@4.9.0-development/opencv.js" ];
     let currentCdnIndex = 0;
 
     function inicializarMotor() {
       if (window.cvListo) return;
       window.cvListo = true;
       document.getElementById('loading').classList.add('hide');
-      document.getElementById('status').textContent = '🟢 Sistema Listo. Pulsa "Iniciar cámara".';
+      document.getElementById('status').textContent = '🟢 Motor Listo. Pulsa "Iniciar Juego".';
     }
 
     function cargarSiguienteCDN() {
@@ -133,14 +143,12 @@
     const objects = document.getElementById('objects');
     const statusEl = document.getElementById('status');
     const triviaPanel = document.getElementById('triviaPanel');
+    const categorySelect = document.getElementById('categorySelect');
     
     let stream = null, running = false, debug = false, frameCounter = 0;
     let activeCellIndex = -1; 
-    
-    // Variables de Estabilidad y Suavizado Anti-Parpadeo
-    let lastAnchors = null;
-    let missedFrames = 0;
-    const MAX_MISSED_FRAMES = 15; // Mantiene el tablero visible durante ~0.5 segundos de interrupción
+    let lastAnchors = null, missedFrames = 0;
+    const MAX_MISSED_FRAMES = 15;
     
     let audioCtx = null;
     function initAudio() {
@@ -152,9 +160,7 @@
       if (!audioCtx) return;
       const osc = audioCtx.createOscillator();
       const gainNode = audioCtx.createGain();
-      osc.connect(gainNode);
-      gainNode.connect(audioCtx.destination);
-      
+      osc.connect(gainNode); gainNode.connect(audioCtx.destination);
       if (type === 'magic') {
         osc.type = 'sine';
         osc.frequency.setValueAtTime(400, audioCtx.currentTime);
@@ -172,40 +178,128 @@
       }
     }
 
+    // BASES DE DATOS DE 25 ELEMENTOS ÚNICOS POR CATEGORÍA
+    const databases = {
+      emociones: [
+        {i:'😌', t:'Calma', q:'Cierra los ojos y respira profundo 3 veces lentamente.'},
+        {i:'😡', t:'Enojo', q:'Es normal enojarse. Aprieta los puños fuerte y luego suéltalos.'},
+        {i:'😢', t:'Tristeza', q:'Date un abrazo a ti mismo bien fuerte durante 5 segundos.'},
+        {i:'😂', t:'Alegría', q:'¡Ríete a carcajadas lo más fuerte que puedas!'},
+        {i:'😨', t:'Miedo', q:'Imagina que tienes un escudo mágico que te protege de todo.'},
+        {i:'😲', t:'Sorpresa', q:'Pon tu mejor cara de asombro y abre mucho la boca.'},
+        {i:'🤢', t:'Desagrado', q:'Arruga la nariz como si olieras algo súper apestoso.'},
+        {i:'🥰', t:'Amor', q:'Envíale un beso volador a la persona que esté más cerca.'},
+        {i:'🥱', t:'Cansancio', q:'Haz un gran estiramiento de brazos al cielo y bosteza.'},
+        {i:'🧘', t:'Relajación', q:'Baja los hombros, relaja el cuello y cuenta hasta 5.'},
+        {i:'🥳', t:'Celebración', q:'¡Levántate y haz tu paso de baile favorito!'},
+        {i:'🤝', t:'Empatía', q:'Dile algo lindo y amable a alguien que esté contigo.'},
+        {i:'😭', t:'Desahogo', q:'Finge que lloras muy fuerte y luego sonríe inmensamente.'},
+        {i:'😤', t:'Frustración', q:'Sopla muy fuerte como si apagaras una vela de cumpleaños gigante.'},
+        {i:'🦸', t:'Valentía', q:'¡Ponte de pie y haz una pose de superhéroe invencible!'},
+        {i:'🧠', t:'Confianza', q:'Toca tu cabeza y di en voz alta: "¡Soy muy inteligente!"'},
+        {i:'❤️', t:'Gratitud', q:'Nombra 2 cosas por las que estés agradecido en este momento.'},
+        {i:'🫂', t:'Contención', q:'Abraza a quien tengas al lado (o a un cojín si estás solo).'},
+        {i:'☀️', t:'Positivismo', q:'Di en voz alta y con energía: "¡Hoy es un día increíble!"'},
+        {i:'😖', t:'Ansiedad', q:'Sacude tus manos muy rápido para liberar toda esa energía.'},
+        {i:'😌', t:'Alivio', q:'Suspira profundamente soltando el aire y diciendo "Aaaah...".'},
+        {i:'🤭', t:'Vergüenza', q:'Tápate la cara con las manos y luego asómate sonriendo.'},
+        {i:'🦁', t:'Fuerza Interior', q:'Gruñe como un león para sacar tu fuerza interior.'},
+        {i:'🤫', t:'Silencio', q:'Pon un dedo en tus labios y guarda silencio absoluto por 5 segundos.'},
+        {i:'🌈', t:'Esperanza', q:'Dibuja un arcoíris gigante en el aire con tus dos manos.'}
+      ],
+      cuentos: [
+        {i:'🐉', t:'El Dragón', q:'¡Fuego! Abre la boca e imagina que escupes fuego cruzando la habitación.'},
+        {i:'🗡️', t:'La Espada', q:'¡En guardia! Haz 3 movimientos rápidos como si estuvieras en un duelo.'},
+        {i:'🗺️', t:'El Mapa', q:'Pon tu mano en la frente como un explorador buscando el norte.'},
+        {i:'💰', t:'El Tesoro', q:'¡Lo encontraste! Da un salto muy alto de alegría.'},
+        {i:'👑', t:'La Corona', q:'Ponte una corona imaginaria y da una orden real con voz grave.'},
+        {i:'🧙‍♂️', t:'El Mago', q:'Agita tu varita y di "¡Abracadabra, pata de cabra!".'},
+        {i:'🧜‍♀️', t:'La Sirena', q:'Junta tus piernas y muévelas como si tuvieras una aleta.'},
+        {i:'🏴‍☠️', t:'El Pirata', q:'Tápate un ojo y grita "¡Al abordaje, marineros!".'},
+        {i:'🧚', t:'El Hada', q:'Camina de puntillas como si estuvieras volando con polvos mágicos.'},
+        {i:'🏰', t:'El Castillo', q:'Haz una pose de estatua vigilando la entrada del castillo.'},
+        {i:'🐎', t:'El Corcel', q:'Trota en tu lugar y haz el sonido de un caballo galopando.'},
+        {i:'🛡️', t:'El Escudo', q:'Agáchate y cúbrete como si te cayeran flechas del cielo.'},
+        {i:'🔮', t:'La Bola de Cristal', q:'Mira tus manos y predice el futuro: "Veo que... comerás algo rico".'},
+        {i:'🦇', t:'El Vampiro', q:'Cúbrete con tu capa imaginaria y ríe malévolamente.'},
+        {i:'🧝', t:'El Elfo', q:'Estírate e intenta tocar el techo, los elfos son muy ágiles.'},
+        {i:'🚢', t:'El Barco', q:'Balancéate de un lado a otro como si estuvieras en alta mar.'},
+        {i:'🗝️', t:'La Llave', q:'Haz el gesto de abrir una puerta muy, muy pesada.'},
+        {i:'🧞', t:'El Genio', q:'Cruza los brazos y concede 3 deseos imaginarios.'},
+        {i:'👻', t:'El Fantasma', q:'Levanta los brazos y asusta a alguien diciendo "¡Buh!".'},
+        {i:'🦉', t:'El Búho Sabio', q:'Abre mucho los ojos y gira la cabeza lentamente de lado a lado.'},
+        {i:'🍎', t:'Manzana Envenenada', q:'Finge dar un mordisco y cae dormido al instante.'},
+        {i:'🪞', t:'Espejo Mágico', q:'Mírate en tu mano y di: "Espejito, espejito, ¿quién es el más bonito?".'},
+        {i:'🏹', t:'El Arquero', q:'Tensa tu arco imaginario, apunta con cuidado y ¡suelta la flecha!'},
+        {i:'🐻', t:'El Oso Feroz', q:'Ponte en cuatro patas y camina pesado dando un rugido.'},
+        {i:'🚪', t:'Portal Mágico', q:'Da un paso adelante e imagina que entras a otra dimensión.'}
+      ],
+      animales: [
+        {i:'🐶', t:'Perro', q:'Jadea saca la lengua y muévete como si movieras la cola.'},
+        {i:'🐱', t:'Gato', q:'Estírate como un gato perezoso y haz un "Miau".'},
+        {i:'🐭', t:'Ratón', q:'Hazte pequeñito y camina rápido de puntillas.'},
+        {i:'🐹', t:'Hámster', q:'Infla tus mejillas como si estuvieran llenas de semillas.'},
+        {i:'🐰', t:'Conejo', q:'Da 3 saltos muy rápidos con los pies juntos.'},
+        {i:'🦊', t:'Zorro', q:'Camina sigilosamente mirando a todos lados.'},
+        {i:'🐻', t:'Oso', q:'Da un gran abrazo de oso a ti mismo y gruñe fuerte.'},
+        {i:'🐼', t:'Panda', q:'Siéntate en el piso a comer bambú imaginario muy relajado.'},
+        {i:'🐨', t:'Koala', q:'Abrázate muy fuerte a una silla o a tus propias piernas.'},
+        {i:'🐯', t:'Tigre', q:'Muestra tus garras y ruge ferozmente.'},
+        {i:'🦁', t:'León', q:'Sacude tu melena imaginaria y da el rugido más fuerte.'},
+        {i:'🐮', t:'Vaca', q:'Mastica pasto imaginario lentamente y di "Muuuu".'},
+        {i:'🐷', t:'Cerdo', q:'Arruga la nariz y haz el sonido "Oink oink".'},
+        {i:'🐸', t:'Rana', q:'Agáchate y da un salto gigante diciendo "¡Croac!".'},
+        {i:'🐵', t:'Mono', q:'Ráscate la cabeza y las axilas saltando de un lado a otro.'},
+        {i:'🐔', t:'Gallina', q:'Mueve los codos como alas y haz "Cocoricó".'},
+        {i:'🐧', t:'Pingüino', q:'Junta los talones, pon los brazos rectos pegados al cuerpo y camina.'},
+        {i:'🦆', t:'Pato', q:'Camina moviendo las caderas de lado a lado haciendo "Cuac cuac".'},
+        {i:'🦅', t:'Águila', q:'Abre tus brazos inmensos como alas y finge que vuelas muy alto.'},
+        {i:'🦉', t:'Búho', q:'Abre grandes los ojos y haz "Hu-hu" en la noche.'},
+        {i:'🦇', t:'Murciélago', q:'Ponte boca abajo (si puedes) o simplemente cúbrete con tus brazos.'},
+        {i:'🐺', t:'Lobo', q:'Levanta la cabeza hacia el techo y aúlla a la luna "¡Auuuuu!".'},
+        {i:'🐗', t:'Jabalí', q:'Agacha la cabeza y corre en el lugar mostrando tus colmillos.'},
+        {i:'🐴', t:'Caballo', q:'Relincha y haz que tus pies suenen como pezuñas trotando.'},
+        {i:'🐍', t:'Serpiente', q:'Junta tus piernas, muévete ondulando el cuerpo y haz "Ssssss".'}
+      ],
+      profesiones: [
+        {i:'👨‍🚒', t:'Bombero', q:'Toma tu manguera imaginaria y apaga un incendio rápido.'},
+        {i:'👮', t:'Policía', q:'Levanta la mano y di "¡Alto en el nombre de la ley!".'},
+        {i:'👨‍⚕️', t:'Médico', q:'Ponte el estetoscopio y escucha el corazón del jugador de al lado.'},
+        {i:'👨‍🍳', t:'Chef', q:'Revuelve una olla gigante y prueba la sopa. ¡Mmm!'},
+        {i:'👨‍🏫', t:'Profesor', q:'Pide silencio a la clase y escribe en la pizarra imaginaria.'},
+        {i:'👨‍🚀', t:'Astronauta', q:'Camina en cámara lenta como si no hubiera gravedad en la luna.'},
+        {i:'👨‍🎨', t:'Pintor', q:'Toma tu paleta de colores y pinta un cuadro en el aire.'},
+        {i:'👨‍🎤', t:'Cantante', q:'Toma tu micrófono y canta el coro de tu canción favorita.'},
+        {i:'🕵️', t:'Detective', q:'Saca tu lupa y busca huellas en el suelo.'},
+        {i:'👨‍🌾', t:'Granjero', q:'Toma tu pala y cava un hoyo para plantar una semilla.'},
+        {i:'👨‍🔧', t:'Mecánico', q:'Tírate al suelo y arregla el motor debajo de un auto imaginario.'},
+        {i:'👨‍✈️', t:'Piloto', q:'Abre los brazos como alas de avión e inclínate para dar una curva.'},
+        {i:'🦸', t:'Superhéroe', q:'Pon las manos en la cintura, saca pecho y mira al horizonte.'},
+        {i:'🧙', t:'Mago', q:'Saca un conejo imaginario de tu sombrero.'},
+        {i:'🥷', t:'Ninja', q:'Haz una pose de artes marciales en total silencio.'},
+        {i:'👷', t:'Constructor', q:'Usa tu martillo imaginario para clavar 3 clavos rápido.'},
+        {i:'🧑‍⚖️', t:'Juez', q:'Golpea el escritorio con tu martillo y di "¡Orden en la sala!".'},
+        {i:'🧑‍🔬', t:'Científico', q:'Mezcla dos tubos de ensayo y finge una pequeña explosión.'},
+        {i:'🧑‍🚀', t:'Buzo', q:'Tápate la nariz y finge que te sumerges en el océano profundo.'},
+        {i:'🧑‍🚒', t:'Rescatista', q:'Lanza una cuerda imaginaria para salvar a alguien.'},
+        {i:'🧑‍🔧', t:'Plomero', q:'Usa tu llave inglesa para apretar una tuerca muy dura.'},
+        {i:'🧑‍🌾', t:'Jardinero', q:'Riega las plantas a tu alrededor con una regadera.'},
+        {i:'🧑‍🍳', t:'Panadero', q:'Amasa un pan imaginario con mucha fuerza sobre la mesa.'},
+        {i:'🧑‍🎤', t:'Bailarín', q:'Da una vuelta sobre ti mismo con mucha gracia.'},
+        {i:'🧑‍💻', t:'Programador', q:'Teclea muy rápido en una computadora invisible diciendo "¡Hackeado!".'}
+      ]
+    };
+
+    let cells = [];
+    let currentCategory = 'emociones';
+
     const templateCorners = [{x: 100, y: 100}, {x: 1180, y: 100}, {x: 1180, y: 700}, {x: 100, y: 700}];
-
-    const gameData = [
-      {i:'🏰', t:'Castillo', q:'¡Defiende el castillo! Ponte de pie y haz tu mejor pose de guardia real.'},
-      {i:'🦁', t:'León', q:'¡Muestra tus garras y ruge muy fuerte como el Rey de la Selva!'},
-      {i:'👑', t:'El Rey', q:'¡Ponte tu corona imaginaria y da una orden real con voz muy grave!'},
-      {i:'🐉', t:'Dragón', q:'¡Abre la boca e imagina que escupes fuego por 3 segundos! 🔥'},
-      {i:'🧙‍♂️', t:'Mago', q:'¡Agita tu varita y di las palabras mágicas "Abracadabra, pata de cabra"!'},
-      {i:'💎', t:'Diamante', q:'¡Brilla mucho! Levanta las manos y muévelas rápido como un destello.'},
-      {i:'⚔️', t:'Espadas', q:'¡En guardia! Haz 3 movimientos lentos como si estuvieras en un duelo.'},
-      {i:'🐎', t:'Caballo', q:'¡Trota en tu lugar y haz el sonido de un caballo galopando!'},
-      {i:'🗺️', t:'Mapa', q:'¡Pon tu mano en la frente como un explorador buscando el tesoro!'},
-      {i:'💰', t:'Oro', q:'¡Encontraste el tesoro pirata! Da un salto muy alto de alegría.'}
-    ];
-
-    const cells = [];
-    const totalCells = 25;
-    
-    for(let i=0; i<totalCells; i++) {
-      let x = 0, y = 0;
-      if(i < 8) { x = 150 + i * 140; y = 150; } 
-      else if(i < 13) { x = 1130; y = 150 + (i-7) * 110; } 
-      else if(i < 20) { x = 1130 - (i-12) * 140; y = 700; } 
-      else { x = 150; y = 700 - (i-19) * 110; } 
-
-      const data = gameData[i % gameData.length];
-      cells.push({ x, y, icon: data.i, title: `${i+1}. ${data.t}`, question: data.q });
-    }
 
     function svgCell(icon, num) {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">
-        <rect x="5" y="5" width="90" height="90" rx="15" fill="#ffffff" stroke="#dfa010" stroke-width="6"/>
+        <rect x="5" y="5" width="90" height="90" rx="15" fill="#ffffff" stroke="#00e5ff" stroke-width="6"/>
         <text x="50" y="55" text-anchor="middle" dominant-baseline="middle" font-size="52">${icon}</text>
-        <circle cx="20" cy="20" r="18" fill="#f44336" stroke="#fff" stroke-width="3"/>
+        <circle cx="20" cy="20" r="18" fill="#ff4081" stroke="#fff" stroke-width="3"/>
         <text x="20" y="22" text-anchor="middle" dominant-baseline="middle" font-size="20" font-weight="900" fill="#fff">${num}</text>
       </svg>`;
       return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
@@ -213,6 +307,20 @@
 
     function buildScene() {
       objects.innerHTML = '';
+      cells = [];
+      const gameData = databases[currentCategory];
+      
+      for(let i=0; i<25; i++) {
+        let x = 0, y = 0;
+        if(i < 8) { x = 150 + i * 140; y = 150; } 
+        else if(i < 13) { x = 1130; y = 150 + (i-7) * 110; } 
+        else if(i < 20) { x = 1130 - (i-12) * 140; y = 700; } 
+        else { x = 150; y = 700 - (i-19) * 110; } 
+
+        const data = gameData[i];
+        cells.push({ x, y, icon: data.i, title: `${i+1}. ${data.t}`, question: data.q });
+      }
+
       cells.forEach((c, i) => {
         const d = document.createElement('div'); 
         d.className = 'cell'; d.id = 'cell_'+i;
@@ -222,20 +330,25 @@
       });
     }
     
+    // Escuchar el cambio de categoría en tiempo real
+    categorySelect.addEventListener('change', (e) => {
+      currentCategory = e.target.value;
+      buildScene();
+      playSound('magic');
+    });
+
     addEventListener('resize', () => { overlay.width = innerWidth; overlay.height = innerHeight; });
-    dispatchEvent(new Event('resize')); buildScene();
+    dispatchEvent(new Event('resize')); 
+    buildScene(); // Construir con la categoría inicial
 
     document.getElementById('start').addEventListener('click', async () => {
-      if (!window.cvListo) {
-        alert("Aún se está cargando el sistema. Por favor espera.");
-        return;
-      }
+      if (!window.cvListo) { alert("Aún cargando IA. Espera un momento."); return; }
       initAudio();
       try {
         stream = await navigator.mediaDevices.getUserMedia({ video: {facingMode:'environment', width:1280, height:720} });
         video.srcObject = stream; await video.play();
         running = true;
-        statusEl.textContent = 'Buscando tablero...';
+        statusEl.textContent = 'Buscando plantilla...';
         requestAnimationFrame(loop);
       } catch (e) { statusEl.textContent = '❌ Error cámara: ' + e.message; }
     });
@@ -248,7 +361,6 @@
       setTimeout(() => { activeCellIndex = -1; }, 2000); 
     });
 
-    // Función de Suavizado de Puntos (Exponential Moving Average)
     function smoothAnchors(newAnchors, prevAnchors, factor = 0.4) {
       if (!prevAnchors) return newAnchors;
       return newAnchors.map((p, i) => ({
@@ -259,12 +371,8 @@
 
     function findAnchors(src, gray, bw, contours, hierarchy) {
       cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
-      
-      // Filtro Gaussiano para eliminar ruido de iluminación
       let ksize = new cv.Size(3, 3);
       cv.GaussianBlur(gray, gray, ksize, 0);
-
-      // Umbral adaptativo ajustado para tolerar sombras
       cv.adaptiveThreshold(gray, bw, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV, 25, 8);
       cv.findContours(bw, contours, hierarchy, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE);
       
@@ -293,19 +401,16 @@
     }
 
     function findBlueObject(src, hsv, mask, contours, hierarchy) {
-      cv.cvtColor(src, hsv, cv.COLOR_RGBA2RGB);
-      cv.cvtColor(hsv, hsv, cv.COLOR_RGB2HSV);
+      cv.cvtColor(src, hsv, cv.COLOR_RGBA2RGB); cv.cvtColor(hsv, hsv, cv.COLOR_RGB2HSV);
       let low = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [85, 100, 60, 0]);
       let high = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [135, 255, 255, 0]);
       cv.inRange(hsv, low, high, mask);
       cv.findContours(mask, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
       let bestPoint = null, maxArea = 0;
       for (let i = 0; i < contours.size(); i++) {
-        let cnt = contours.get(i);
-        let area = cv.contourArea(cnt);
+        let cnt = contours.get(i); let area = cv.contourArea(cnt);
         if (area > 350 && area > maxArea) {
-          maxArea = area;
-          let m = cv.moments(cnt);
+          maxArea = area; let m = cv.moments(cnt);
           if (m.m00 > 0) bestPoint = { x: m.m10/m.m00, y: m.m01/m.m00, area };
         }
         cnt.delete();
@@ -344,17 +449,12 @@
         let rawAnchors = findAnchors(src, gray, bw, contours, hierarchy);
         let anchors = null;
 
-        // Gestión de estabilidad y tolerancia
         if (rawAnchors) {
-          anchors = smoothAnchors(rawAnchors, lastAnchors, 0.35); // Filtro suavizador
-          lastAnchors = anchors;
-          missedFrames = 0;
+          anchors = smoothAnchors(rawAnchors, lastAnchors, 0.35); 
+          lastAnchors = anchors; missedFrames = 0;
         } else if (lastAnchors && missedFrames < MAX_MISSED_FRAMES) {
-          anchors = lastAnchors; // Usar memoria temporal si hay pérdida rápida
-          missedFrames++;
-        } else {
-          lastAnchors = null;
-        }
+          anchors = lastAnchors; missedFrames++;
+        } else { lastAnchors = null; }
 
         const blueCubeCamera = findBlueObject(src, hsv, mask, contours, hierarchy);
         octx.clearRect(0,0,overlay.width,overlay.height);
@@ -374,37 +474,27 @@
             const camPos = projectPoint(H, c);
             const screenPos = cameraToScreen(camPos);
             
-            el.style.left = screenPos.x + 'px'; 
-            el.style.top = screenPos.y + 'px';
-            el.style.transform = transformStr;
-            el.style.display = 'block';
+            el.style.left = screenPos.x + 'px'; el.style.top = screenPos.y + 'px';
+            el.style.transform = transformStr; el.style.display = 'block';
 
             if (cubeScreenPos && activeCellIndex === -1 && !triviaPanel.classList.contains('show')) {
               const dist = Math.hypot(screenPos.x - cubeScreenPos.x, screenPos.y - cubeScreenPos.y);
               if (dist < 60) { 
-                activeCellIndex = i;
-                el.classList.add('active'); 
-                
+                activeCellIndex = i; el.classList.add('active'); 
                 document.getElementById('triviaIcon').textContent = c.icon;
                 document.getElementById('triviaTitle').textContent = c.title;
                 document.getElementById('triviaQuestion').textContent = c.question;
-                
-                playSound('magic');
-                triviaPanel.classList.add('show');
-              } else {
-                el.classList.remove('active');
-              }
+                playSound('magic'); triviaPanel.classList.add('show');
+              } else { el.classList.remove('active'); }
             }
           });
 
           if (cubeScreenPos) {
             octx.beginPath(); octx.arc(cubeScreenPos.x, cubeScreenPos.y, 25, 0, 2*Math.PI);
-            octx.lineWidth = 4; octx.strokeStyle = '#00e5ff'; octx.stroke();
-            octx.fillStyle = 'rgba(0, 229, 255, 0.3)'; octx.fill();
-            statusEl.textContent = '🟢 Tablero Estable y Jugador OK.';
-          } else {
-            statusEl.textContent = '🟡 Tablero OK. Esperando Cubo Azul...';
-          }
+            octx.lineWidth = 4; octx.strokeStyle = '#ff007f'; octx.stroke();
+            octx.fillStyle = 'rgba(255, 0, 127, 0.3)'; octx.fill();
+            statusEl.textContent = '🟢 Jugador detectado.';
+          } else { statusEl.textContent = '🟡 Esperando ficha azul...'; }
 
           if(debug) {
             octx.strokeStyle = '#00ff66'; octx.lineWidth = 2; octx.beginPath();
@@ -414,7 +504,7 @@
           srcPts.delete(); dstPts.delete();
         } else {
           document.querySelectorAll('.cell').forEach(e => e.style.display = 'none');
-          statusEl.textContent = '🔎 Apunta la cámara hacia la plantilla...';
+          statusEl.textContent = '🔎 Apunta a la plantilla...';
         }
 
       } catch(e) { console.error(e); 
