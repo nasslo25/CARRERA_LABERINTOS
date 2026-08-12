@@ -20,8 +20,8 @@
     
     #objects { position: fixed; inset: 0; z-index: 10; pointer-events: none; }
     
-    /* Casillas Cuadradas Más Grandes y Visibles */
-    .cell { position: absolute; left: 0; top: 0; width: 95px; height: 95px; transform: translate(-50%,-50%); display: none; will-change: left, top, transform; transition: transform 0.2s; }
+    /* Casillas Cuadradas Grandes */
+    .cell { position: absolute; left: 0; top: 0; width: 95px; height: 95px; transform: translate(-50%,-50%); display: none; will-change: left, top, transform; transition: transform 0.2s, left 0.1s ease-out, top 0.1s ease-out; }
     .cell img { width: 100%; height: 100%; filter: drop-shadow(0 6px 12px rgba(0,0,0,0.8)); }
     .cell.active { transform: translate(-50%,-50%) scale(1.3); z-index: 30; } 
 
@@ -64,7 +64,7 @@
     <div>
       <div class="spinner"></div>
       <h2>🏕️ AR Aventura</h2>
-      <p id="loadText">Descargando Motor de IA...<br><small>Conectando al servidor...</small></p>
+      <p id="loadText">Cargando Motor de Estabilidad AR...<br><small>Conectando al servidor...</small></p>
     </div>
   </div>
 
@@ -78,11 +78,10 @@
     <h2>🏕️ AR Aventura</h2>
     <div id="status">Esperando cámara...</div>
     <button id="start">📷 Iniciar cámara y jugar</button>
-    <button id="debug">🔎 Ver Rastreador</button>
-    <div style="font-size:12px;color:#aaa;margin-top:8px">Mueve el cubo AZUL frente a la cámara para jugar.</div>
+    <button id="debug">🔎 Modo Depuración</button>
+    <div style="font-size:12px;color:#aaa;margin-top:8px">Mueve el cubo AZUL frente a la cámara para interactuar.</div>
   </div>
 
-  <!-- Modal Jumanji Central -->
   <div id="triviaPanel">
     <div id="triviaIcon">👑</div>
     <h3 id="triviaTitle">El Rey</h3>
@@ -104,7 +103,7 @@
       if (window.cvListo) return;
       window.cvListo = true;
       document.getElementById('loading').classList.add('hide');
-      document.getElementById('status').textContent = '🟢 Listo. Pulsa "Iniciar cámara".';
+      document.getElementById('status').textContent = '🟢 Sistema Listo. Pulsa "Iniciar cámara".';
     }
 
     function cargarSiguienteCDN() {
@@ -138,7 +137,11 @@
     let stream = null, running = false, debug = false, frameCounter = 0;
     let activeCellIndex = -1; 
     
-    // API de Audio Web para sonidos sin descargar archivos
+    // Variables de Estabilidad y Suavizado Anti-Parpadeo
+    let lastAnchors = null;
+    let missedFrames = 0;
+    const MAX_MISSED_FRAMES = 15; // Mantiene el tablero visible durante ~0.5 segundos de interrupción
+    
     let audioCtx = null;
     function initAudio() {
       if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -171,7 +174,6 @@
 
     const templateCorners = [{x: 100, y: 100}, {x: 1180, y: 100}, {x: 1180, y: 700}, {x: 100, y: 700}];
 
-    // Retos interactivos para niños
     const gameData = [
       {i:'🏰', t:'Castillo', q:'¡Defiende el castillo! Ponte de pie y haz tu mejor pose de guardia real.'},
       {i:'🦁', t:'León', q:'¡Muestra tus garras y ruge muy fuerte como el Rey de la Selva!'},
@@ -199,7 +201,6 @@
       cells.push({ x, y, icon: data.i, title: `${i+1}. ${data.t}`, question: data.q });
     }
 
-    // SVG Mejorado: Cuadrados grandes con un círculo de número bien visible
     function svgCell(icon, num) {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">
         <rect x="5" y="5" width="90" height="90" rx="15" fill="#ffffff" stroke="#dfa010" stroke-width="6"/>
@@ -226,15 +227,15 @@
 
     document.getElementById('start').addEventListener('click', async () => {
       if (!window.cvListo) {
-        alert("Aún se está descargando la IA. ¡Paciencia!");
+        alert("Aún se está cargando el sistema. Por favor espera.");
         return;
       }
-      initAudio(); // Iniciar motor de audio con el clic del usuario
+      initAudio();
       try {
         stream = await navigator.mediaDevices.getUserMedia({ video: {facingMode:'environment', width:1280, height:720} });
         video.srcObject = stream; await video.play();
         running = true;
-        statusEl.textContent = 'Buscando tablero y el Cubo Azul...';
+        statusEl.textContent = 'Buscando tablero...';
         requestAnimationFrame(loop);
       } catch (e) { statusEl.textContent = '❌ Error cámara: ' + e.message; }
     });
@@ -247,16 +248,32 @@
       setTimeout(() => { activeCellIndex = -1; }, 2000); 
     });
 
+    // Función de Suavizado de Puntos (Exponential Moving Average)
+    function smoothAnchors(newAnchors, prevAnchors, factor = 0.4) {
+      if (!prevAnchors) return newAnchors;
+      return newAnchors.map((p, i) => ({
+        x: prevAnchors[i].x + (p.x - prevAnchors[i].x) * factor,
+        y: prevAnchors[i].y + (p.y - prevAnchors[i].y) * factor
+      }));
+    }
+
     function findAnchors(src, gray, bw, contours, hierarchy) {
       cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
-      cv.adaptiveThreshold(gray, bw, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV, 21, 10);
+      
+      // Filtro Gaussiano para eliminar ruido de iluminación
+      let ksize = new cv.Size(3, 3);
+      cv.GaussianBlur(gray, gray, ksize, 0);
+
+      // Umbral adaptativo ajustado para tolerar sombras
+      cv.adaptiveThreshold(gray, bw, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV, 25, 8);
       cv.findContours(bw, contours, hierarchy, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE);
+      
       let centers = [];
       for (let i = 0; i < contours.size(); i++) {
         let h = hierarchy.intPtr(0, i);
         if (h[2] !== -1 && hierarchy.intPtr(0, h[2])[2] !== -1) {
           let c = contours.get(i), area = cv.contourArea(c);
-          if (area > 150 && area < 50000) {
+          if (area > 100 && area < 60000) {
             let m = cv.moments(c);
             if (m.m00 > 0) centers.push({x: m.m10/m.m00, y: m.m01/m.m00});
           }
@@ -264,7 +281,7 @@
         }
       }
       let unique = [];
-      for (let p of centers) if (!unique.find(u => Math.hypot(u.x-p.x, u.y-p.y) < 30)) unique.push(p);
+      for (let p of centers) if (!unique.find(u => Math.hypot(u.x-p.x, u.y-p.y) < 35)) unique.push(p);
       if (unique.length === 4) {
         const sum = unique.map(p => p.x+p.y), diff = unique.map(p => p.x-p.y);
         return [
@@ -278,15 +295,15 @@
     function findBlueObject(src, hsv, mask, contours, hierarchy) {
       cv.cvtColor(src, hsv, cv.COLOR_RGBA2RGB);
       cv.cvtColor(hsv, hsv, cv.COLOR_RGB2HSV);
-      let low = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [90, 120, 70, 0]);
-      let high = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [130, 255, 255, 0]);
+      let low = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [85, 100, 60, 0]);
+      let high = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [135, 255, 255, 0]);
       cv.inRange(hsv, low, high, mask);
       cv.findContours(mask, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
       let bestPoint = null, maxArea = 0;
       for (let i = 0; i < contours.size(); i++) {
         let cnt = contours.get(i);
         let area = cv.contourArea(cnt);
-        if (area > 400 && area > maxArea) {
+        if (area > 350 && area > maxArea) {
           maxArea = area;
           let m = cv.moments(cnt);
           if (m.m00 > 0) bestPoint = { x: m.m10/m.m00, y: m.m01/m.m00, area };
@@ -312,7 +329,6 @@
 
     function loop() {
       if (!running || !video.videoWidth) { requestAnimationFrame(loop); return; }
-      if (++frameCounter % 2 !== 0) { requestAnimationFrame(loop); return; }
 
       processCanvas.width = video.videoWidth; processCanvas.height = video.videoHeight;
       pctx.drawImage(video, 0, 0, processCanvas.width, processCanvas.height);
@@ -325,9 +341,22 @@
         gray = new cv.Mat(); bw = new cv.Mat(); hsv = new cv.Mat(); mask = new cv.Mat();
         contours = new cv.MatVector(); hierarchy = new cv.Mat();
 
-        const anchors = findAnchors(src, gray, bw, contours, hierarchy);
+        let rawAnchors = findAnchors(src, gray, bw, contours, hierarchy);
+        let anchors = null;
+
+        // Gestión de estabilidad y tolerancia
+        if (rawAnchors) {
+          anchors = smoothAnchors(rawAnchors, lastAnchors, 0.35); // Filtro suavizador
+          lastAnchors = anchors;
+          missedFrames = 0;
+        } else if (lastAnchors && missedFrames < MAX_MISSED_FRAMES) {
+          anchors = lastAnchors; // Usar memoria temporal si hay pérdida rápida
+          missedFrames++;
+        } else {
+          lastAnchors = null;
+        }
+
         const blueCubeCamera = findBlueObject(src, hsv, mask, contours, hierarchy);
-        
         octx.clearRect(0,0,overlay.width,overlay.height);
 
         if (anchors) {
@@ -352,7 +381,7 @@
 
             if (cubeScreenPos && activeCellIndex === -1 && !triviaPanel.classList.contains('show')) {
               const dist = Math.hypot(screenPos.x - cubeScreenPos.x, screenPos.y - cubeScreenPos.y);
-              if (dist < 60) { // Distancia ampliada para las celdas más grandes
+              if (dist < 60) { 
                 activeCellIndex = i;
                 el.classList.add('active'); 
                 
@@ -360,7 +389,7 @@
                 document.getElementById('triviaTitle').textContent = c.title;
                 document.getElementById('triviaQuestion').textContent = c.question;
                 
-                playSound('magic'); // Emitir sonido alegre
+                playSound('magic');
                 triviaPanel.classList.add('show');
               } else {
                 el.classList.remove('active');
@@ -372,9 +401,9 @@
             octx.beginPath(); octx.arc(cubeScreenPos.x, cubeScreenPos.y, 25, 0, 2*Math.PI);
             octx.lineWidth = 4; octx.strokeStyle = '#00e5ff'; octx.stroke();
             octx.fillStyle = 'rgba(0, 229, 255, 0.3)'; octx.fill();
-            statusEl.textContent = '🟢 Tablero y Jugador detectados.';
+            statusEl.textContent = '🟢 Tablero Estable y Jugador OK.';
           } else {
-            statusEl.textContent = '🟡 Tablero OK. Falta cubo azul en cámara.';
+            statusEl.textContent = '🟡 Tablero OK. Esperando Cubo Azul...';
           }
 
           if(debug) {
@@ -385,7 +414,7 @@
           srcPts.delete(); dstPts.delete();
         } else {
           document.querySelectorAll('.cell').forEach(e => e.style.display = 'none');
-          statusEl.textContent = '🔎 Enfoca el marcador base (las 4 marcas negras)...';
+          statusEl.textContent = '🔎 Apunta la cámara hacia la plantilla...';
         }
 
       } catch(e) { console.error(e); 
